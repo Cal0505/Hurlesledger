@@ -38,6 +38,10 @@ export const BillModal: React.FC<BillModalProps> = ({
   billToEdit,
   currencySymbol,
 }) => {
+  // ✅ MOVED TO TOP — declared BEFORE use
+  const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+  const [manualBillingMonth, setManualBillingMonth] = useState(currentMonthKey);
+
   const [selectedDebitGroupKey, setSelectedDebitGroupKey] = useState('');
   const [filterByMonth, setFilterByMonth] = useState<string>('all');
   const [name, setName] = useState('');
@@ -46,11 +50,9 @@ export const BillModal: React.FC<BillModalProps> = ({
   const [frequency, setFrequency] = useState<BillFrequency>('monthly');
   const [dueDay, setDueDay] = useState<number>(1);
   const [participatingMemberIds, setParticipatingMemberIds] = useState<string[]>([]);
-  const [payerMemberIds, setPayerMemberIds] = useState<string[]>([]); // ✅ Added
+  const [payerMemberIds, setPayerMemberIds] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-
-  const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
 
   const selectableMonths = React.useMemo(() => {
     const list = [];
@@ -122,7 +124,7 @@ export const BillModal: React.FC<BillModalProps> = ({
       setFrequency(billToEdit.frequency);
       setDueDay(billToEdit.dueDay);
       setParticipatingMemberIds(billToEdit.participatingMemberIds);
-      setPayerMemberIds(billToEdit.payerMemberIds || []); // ✅ Preserve existing
+      setPayerMemberIds(billToEdit.payerMemberIds || []);
       setNotes(billToEdit.notes || '');
       if (billToEdit.incurredDate) {
         setManualBillingMonth(billToEdit.incurredDate.slice(0, 7));
@@ -137,7 +139,7 @@ export const BillModal: React.FC<BillModalProps> = ({
       setFrequency('monthly');
       setDueDay(1);
       setParticipatingMemberIds(members.map((m) => m.id));
-      setPayerMemberIds([]); // ✅ Default empty
+      setPayerMemberIds([]);
       setNotes('');
       setManualBillingMonth(currentMonthKey);
     }
@@ -162,7 +164,6 @@ export const BillModal: React.FC<BillModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const selectedDebitGroup = importedDebitGroups.find((group) => group.key === selectedDebitGroupKey);
-
     if (!name.trim()) {
       setErrorMsg('Please enter a bill name.');
       return;
@@ -175,13 +176,11 @@ export const BillModal: React.FC<BillModalProps> = ({
       setErrorMsg('At least one member must participate in this bill.');
       return;
     }
-
     const finalIncurredDate = frequency === 'one-off'
       ? selectedDebitGroup?.incurredDate ||
         billToEdit?.incurredDate ||
         `${manualBillingMonth}-${String(dueDay).padStart(2, '0')}`
       : undefined;
-
     onSaveBill(
       {
         name: name.trim(),
@@ -191,8 +190,8 @@ export const BillModal: React.FC<BillModalProps> = ({
         dueDay,
         incurredDate: finalIncurredDate,
         participatingMemberIds,
-        payerMemberIds: payerMemberIds, // ✅ REQUIRED FIELD
-        payerMemberId: payerMemberIds[0], // ✅ Optional: first payer as single payer
+        payerMemberIds: payerMemberIds,
+        payerMemberId: payerMemberIds[0],
         notes: notes.trim() || undefined,
         isActive: billToEdit ? billToEdit.isActive : true,
       },
@@ -201,9 +200,6 @@ export const BillModal: React.FC<BillModalProps> = ({
     );
     onClose();
   };
-
-  // ... rest of your JSX stays exactly the same
-  const [manualBillingMonth, setManualBillingMonth] = useState(currentMonthKey);
 
   return (
     <div className="bill-modal-overlay">

@@ -5,6 +5,7 @@ import { AuthScreen } from './components/AuthScreen';
 import { AccessRequestsPanel } from './components/AccessRequestsPanel';
 import { HouseholdAccessScreen } from './components/HouseholdAccessScreen';
 import { PasswordRecoveryScreen } from './components/PasswordRecoveryScreen';
+// ✅ Added DEFAULT_ACCENT import
 import { ThemeMode, AccentColor, THEME_STORAGE_KEY, ACCENT_STORAGE_KEY, DEFAULT_ACCENT } from './constants/theme';
 import { supabaseClient, supabaseConfigurationError } from './utils/supabase';
 import { getEmptyState } from './utils/storage';
@@ -32,6 +33,8 @@ export default function App() {
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(
     () => new URLSearchParams(window.location.hash.slice(1)).get('type') === 'recovery'
   );
+
+  // ===== THEME MODE =====
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     try {
       const stored = localStorage.getItem(THEME_STORAGE_KEY);
@@ -39,6 +42,8 @@ export default function App() {
       return 'system';
     } catch { return 'system'; }
   });
+
+  // ===== ACCENT COLOR — uses DEFAULT_ACCENT, never null =====
   const [accentColor, setAccentColor] = useState<AccentColor>(() => {
     try {
       const stored = localStorage.getItem(ACCENT_STORAGE_KEY);
@@ -48,16 +53,19 @@ export default function App() {
     } catch { return DEFAULT_ACCENT; }
   });
 
+  // ===== SAVE PREFERENCES =====
   useEffect(() => {
     try { localStorage.setItem(THEME_STORAGE_KEY, themeMode); }
     catch (e) { console.warn('Could not save theme mode', e); }
   }, [themeMode]);
 
   useEffect(() => {
-    try { localStorage.setItem(ACCENT_STORAGE_KEY, accentColor); }
-    catch (e) { console.warn('Could not save accent color', e); }
+    try {
+      localStorage.setItem(ACCENT_STORAGE_KEY, accentColor);
+    } catch (e) { console.warn('Could not save accent color', e); }
   }, [accentColor]);
 
+  // ===== APPLY FULL THEME — no null fallback needed =====
   useEffect(() => {
     const root = document.documentElement;
     const systemMedia = window.matchMedia('(prefers-color-scheme: dark)');
@@ -66,16 +74,20 @@ export default function App() {
       const base = themeMode === 'light' ? 'light'
         : themeMode === 'dark' ? 'dark'
         : systemMedia.matches ? 'dark' : 'light';
+      
+      // ✅ accentColor is always valid now
       root.dataset.theme = `${accentColor}-${base}`;
     };
     
     apply();
+    
     if (themeMode === 'system') {
       systemMedia.addEventListener('change', apply);
       return () => systemMedia.removeEventListener('change', apply);
     }
   }, [accentColor, themeMode]);
 
+  // ===== AUTH & SESSION =====
   useEffect(() => {
     if (!supabaseClient) {
       setIsAuthLoading(false);
@@ -104,6 +116,7 @@ export default function App() {
     return () => { isMounted = false; subscription.unsubscribe(); };
   }, []);
 
+  // ===== ACCESS CHECK =====
   useEffect(() => {
     if (!session) {
       setAccessStatus('none');
@@ -130,6 +143,7 @@ export default function App() {
     if (error) throw error;
   };
 
+  // ===== LOADING SCREENS =====
   if (isAuthLoading) {
     return <main className="min-h-screen flex items-center justify-center bg-neutral-50 text-neutral-700"><p className="text-sm">Checking your sign-in…</p></main>;
   }
@@ -181,6 +195,7 @@ export default function App() {
   );
 }
 
+// ===== HOUSEHOLD APP =====
 interface HouseholdAppProps {
   themeMode: ThemeMode;
   onChangeTheme: (t: ThemeMode) => void;
@@ -204,15 +219,14 @@ function HouseholdApp({
   const [loadAttempt, setLoadAttempt] = useState(0);
   const stateRef = useRef(state);
   const mutationQueueRef = useRef<Promise<void>>(Promise.resolve());
-  
   const isAccountHolder = state.members.some(m => m.authUserId === signedInUserId && m.isAccountHolder);
   const visibleMembers = isAccountHolder ? state.members : state.members.filter(m => m.authUserId === signedInUserId);
-  
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const displayedTab = isAccountHolder ? activeTab : 'members';
-  
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // ===== MODALS =====
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [isBillModalOpen, setIsBillModalOpen] = useState(false);
   const [billToEdit, setBillToEdit] = useState<HouseholdBill | null>(null);
@@ -221,18 +235,21 @@ function HouseholdApp({
   const [editingTxId, setEditingTxId] = useState<string | null>(null);
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const [memberToEdit, setMemberToEdit] = useState<Member | null>(null);
-  
+
+  // Date
   const [activeLedgerDate, setActiveLedgerDate] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const currentMonthKey = `${activeLedgerDate.getFullYear()}-${String(activeLedgerDate.getMonth() + 1).padStart(2, '0')}`;
 
+  // Clear legacy state
   useEffect(() => {
     try { localStorage.removeItem('Hurlesledger_household_state_v1'); }
     catch (e) { console.warn('Unable to remove old data', e); }
   }, []);
 
+  // Load data
   useEffect(() => {
     let isMounted = true;
     setIsDataLoading(true);
@@ -282,6 +299,7 @@ function HouseholdApp({
     }
   }, [state.members, selectedMemberId]);
 
+  // Balances
   const memberBalances = useMemo(() => {
     const map: Record<string, { totalMonthlyShare: number; totalPaid: number; remainingDue: number }> = {};
     state.members.forEach(m => {
@@ -484,8 +502,6 @@ function HouseholdApp({
     setState(updated);
   };
 
-  const pendingAccessCount = accessRequests.length;
-
   if (loadError) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-neutral-50 p-4">
@@ -564,49 +580,34 @@ function HouseholdApp({
               onEditBill={(b) => { setBillToEdit(b); setIsBillModalOpen(true); }}
             />}
             
-            {displayedTab === 'members' && (
+            {displayedTab === 'members' && <>
+              {isAccountHolder && <AccessRequestsPanel 
+                requests={accessRequests} onResolveRequest={handleResolveAccessRequest} 
+                onRefresh={handleRefreshAccessRequests} 
+              />}
               <MemberProfilesView
-                members={visibleMembers}
-                bills={state.bills}
-                transactions={state.transactions}
-                canManageMembers={isAccountHolder}
-                selectedMemberId={selectedMemberId}
-                setSelectedMemberId={setSelectedMemberId}
-                currencySymbol={state.currencySymbol}
-                onDeleteMember={handleDeleteMember}
-                onToggleCoHost={handleToggleCoHost}
+                members={visibleMembers} bills={state.bills} transactions={state.transactions}
+                canManageMembers={isAccountHolder} selectedMemberId={selectedMemberId} setSelectedMemberId={setSelectedMemberId}
+                currencySymbol={state.currencySymbol} onDeleteMember={handleDeleteMember} onToggleCoHost={handleToggleCoHost}
                 onOpenAddMember={() => { setMemberToEdit(null); setIsMemberModalOpen(true); }}
                 onEditMember={(m) => { setMemberToEdit(m); setIsMemberModalOpen(true); }}
-                onOpenAddTransaction={(p, editId?: string) => {
-                  if (p) openTransactionModal(p, editId);
-                  else if (selectedMemberId) handleRecordCashOverride(selectedMemberId);
+                onOpenAddTransaction={(p, editId?: string) => { 
+                  if (p) openTransactionModal(p, editId); 
+                  else if (selectedMemberId) handleRecordCashOverride(selectedMemberId); 
                 }}
-                signedInUserEmail={userEmail}
-                onLinkMemberToLogin={handleLinkMemberToLogin}
-                accessRequestCount={pendingAccessCount}
-              >
-                {isAccountHolder && (
-                  <AccessRequestsPanel
-                    requests={accessRequests}
-                    onResolveRequest={handleResolveAccessRequest}
-                    onRefresh={handleRefreshAccessRequests}
-                  />
-                )}
-              </MemberProfilesView>
-            )}
+                signedInUserEmail={userEmail} onLinkMemberToLogin={handleLinkMemberToLogin}
+                {...({ currentMonthKey, setSelectedMonthDate: setActiveLedgerDate } as any)}
+              />
+            </>}
             
             {displayedTab === 'settlement' && <SettlementMatrixView
               members={visibleMembers} bills={state.bills} transactions={state.transactions}
               primaryUserId={state.primaryUserId} currencySymbol={state.currencySymbol}
             />}
           </main>
-          
-          {/* ✅ FOOTER — Account Holder / Host ONLY */}
-          {isAccountHolder && (
-            <footer className="px-6 py-3 border-t border-neutral-200 bg-white text-xs text-neutral-500">
-              HurlesLedger · Shared household database
-            </footer>
-          )}
+          <footer className="px-6 py-3 border-t border-neutral-200 bg-white text-xs text-neutral-500">
+            HurlesLedger · Shared household database
+          </footer>
         </div>
       </div>
       
