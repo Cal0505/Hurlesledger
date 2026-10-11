@@ -6,9 +6,10 @@ import { defineConfig } from 'vite';
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
+    base: '/Hurlesledger/',
     resolve: {
       alias: {
-        '@': path.resolve(import.meta.dirname, '.'), // ✅ Fixed __dirname warning
+        '@': path.resolve(import.meta.dirname, '.'),
       },
     },
     server: {
