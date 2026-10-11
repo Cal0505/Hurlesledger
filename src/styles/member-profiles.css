@@ -1,0 +1,217 @@
+/* ================================================
+   Member Tumbler / Month Selector — EXACT FIX
+================================================ */
+/* Active month card — THIS is what you see */
+.member-tumbler-item.member-tumbler-item--active {
+  background-color: var(--accent-bg-subtle) !important;
+  border: 2px solid var(--accent) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: 0 0 0 1px var(--accent), var(--shadow-md) !important;
+  transition: all 0.2s ease !important;
+}
+/* Inactive month cards */
+.member-tumbler-item {
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-lg) !important;
+  transition: all 0.2s ease !important;
+}
+/* Hover for ALL tumbler cards */
+.member-tumbler-item:hover {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--accent-bg-subtle) !important;
+}
+/* Text inside the active card */
+.member-tumbler-item--active,
+.member-tumbler-item--active * {
+  color: var(--accent) !important;
+}
+/* Month/Year main text */
+.member-tumbler-item--active .month-label,
+.member-tumbler-item--active h3,
+.member-tumbler-item--active > span:first-child {
+  color: var(--accent) !important;
+  font-weight: 700 !important;
+  font-size: 1.25rem !important;
+}
+/* Up/Down arrow buttons */
+.member-tumbler-item button {
+  color: var(--accent) !important;
+  background: transparent !important;
+}
+.member-tumbler-item button:hover {
+  background-color: var(--accent-bg-subtle) !important;
+  color: var(--accent) !important;
+}
+/* Amount text inside card */
+.member-tumbler-item--active .amount,
+.member-tumbler-item--active .month-value {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+}
+
+/* ================================================
+   Member Profiles — Tab Bar & Layout
+================================================ */
+.member-profiles-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+/* Empty State */
+.member-profiles-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  gap: 0.75rem;
+}
+.member-profiles-empty-icon {
+  width: 3rem;
+  height: 3rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+.member-profiles-empty-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+.member-profiles-empty-text {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0 0 1rem 0;
+  max-width: 28rem;
+}
+.member-profiles-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius-lg);
+  border: none;
+  background-color: var(--accent);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.member-profiles-add-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Tab Bar */
+.member-profiles-tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.member-profiles-tab-bar > div:first-child {
+  display: flex;
+  gap: 0.25rem;
+}
+
+/* Base Tab Button */
+.member-profiles-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.member-profiles-tab:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+/* Active Tab — with accent highlight */
+.member-profiles-tab--active {
+  background-color: var(--accent-bg-subtle);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* Badge on Access Requests tab */
+.member-profiles-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  border-radius: 9999px;
+  background-color: var(--accent);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Right-side actions: Refresh + Add Member */
+.member-profiles-tab-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.member-profiles-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-md);
+  border: none;
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.member-profiles-refresh-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+.member-profiles-add-member-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-md);
+  border: none;
+  background-color: var(--accent);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.member-profiles-add-member-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Content Panels */
+.member-profiles-content {
+  display: block;
+}
+.member-profiles-access-content {
+  padding: 1rem 0;
+  color: var(--text-secondary);
+}

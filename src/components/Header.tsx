@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { LogOut, Menu, Monitor, Moon, Plus, Settings, Sun, Upload } from 'lucide-react';
 import { ActiveTab, Transaction } from '../types/budget';
-// Import from shared constants — NO circular import!
-import { ThemeMode, AccentColor, ACCENT_COLORS } from '../constants/theme';
+import { ThemeMode, AccentColor, ACCENT_COLORS, DEFAULT_ACCENT } from '../constants/theme';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -75,65 +74,66 @@ export const Header: React.FC<HeaderProps> = ({
   const currentMonthYear = today.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
   return (
-    <header className="h-16 px-4 md:px-8 border-b border-neutral-200 bg-white flex items-center justify-between shrink-0 sticky top-0 z-30">
+    <header className="hdr-root">
       {/* Zone 1: Breadcrumb Trail */}
-      <div className="flex items-center gap-3">
+      <div className="hdr-left">
         <button
           onClick={onOpenMobileMenu}
-          className="lg:hidden p-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-md"
+          className="hdr-menu-btn"
           aria-label="Open sidebar"
         >
-          <Menu className="w-5 h-5" />
+          <Menu className="hdr-icon" />
         </button>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-neutral-600 font-medium hidden sm:inline">Hearth</span>
-          <span className="text-neutral-400 hidden sm:inline" aria-hidden="true">/</span>
-          <h1 className="text-sm md:text-base font-semibold text-neutral-900 tracking-tight">
-            {getBreadcrumbTitle()}
-          </h1>
+        <div className="hdr-breadcrumb">
+          <span className="hdr-breadcrumb-prefix hidden sm:inline">Hearth</span>
+          <span className="hdr-breadcrumb-sep hidden sm:inline" aria-hidden="true">/</span>
+          <h1 className="hdr-title">{getBreadcrumbTitle()}</h1>
         </div>
       </div>
 
       {/* Zone 2: Month / Household context */}
       {isAccountHolder && (
-        <div className="hidden md:flex items-center gap-2 text-xs text-neutral-600">
-          <span>Cycle: <strong className="font-semibold text-neutral-800">{currentMonthYear}</strong></span>
+        <div className="hdr-center hidden md:flex">
+          <span>Cycle: <strong className="hdr-highlight">{currentMonthYear}</strong></span>
           <span aria-hidden="true">·</span>
-          <span>Account: <strong className="font-semibold text-neutral-800">Lora &amp; Carl (Shared)</strong></span>
+          <span>Account: <strong className="hdr-highlight">Lora &amp; Carl (Shared)</strong></span>
         </div>
       )}
 
       {/* Zone 3: Primary Actions */}
-      <div className="flex items-center gap-1 sm:gap-2">
-        {isAccountHolder && <>
-          <button
-            onClick={onOpenImportCsv}
-            className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-md transition-colors whitespace-nowrap"
-            title="Import bank statement CSV"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Import CSV</span>
-          </button>
-          {activeTab === 'household-bills' ? (
+      <div className="hdr-right">
+        {isAccountHolder && (
+          <>
             <button
-              onClick={onOpenAddBill}
-              className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-medium text-white bg-neutral-900 hover:bg-neutral-800 rounded-md transition-colors whitespace-nowrap shadow-xs"
+              onClick={onOpenImportCsv}
+              className="hdr-btn hdr-btn--secondary"
+              title="Import bank statement CSV"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Add Bill</span>
+              <Upload className="hdr-icon-sm" />
+              <span className="hidden sm:inline">Import CSV</span>
             </button>
-          ) : (
-            <button
-              onClick={() => onOpenAddTransaction()}
-              className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-medium text-white bg-neutral-900 hover:bg-neutral-800 rounded-md transition-colors whitespace-nowrap shadow-xs"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Record Flow</span>
-            </button>
-          )}
-        </>}
+            {activeTab === 'household-bills' ? (
+              <button
+                onClick={onOpenAddBill}
+                className="hdr-btn hdr-btn--primary"
+              >
+                <Plus className="hdr-icon-sm" />
+                <span className="hidden sm:inline">Add Bill</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => onOpenAddTransaction({})}
+                className="hdr-btn hdr-btn--primary"
+              >
+                <Plus className="hdr-icon-sm" />
+                <span className="hidden sm:inline">Record Flow</span>
+              </button>
+            )}
+          </>
+        )}
 
-        <div className="relative" ref={settingsRef}>
+        {/* Settings Dropdown */}
+        <div className="hdr-settings-wrap" ref={settingsRef}>
           <button
             ref={settingsButtonRef}
             type="button"
@@ -141,88 +141,79 @@ export const Header: React.FC<HeaderProps> = ({
               setSettingsOpen((open) => !open);
               setSignOutError('');
             }}
-            className="inline-flex items-center justify-center w-9 h-9 rounded-md border border-neutral-200 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 transition-colors"
+            className="hdr-settings-btn"
             aria-label="Open settings"
             aria-expanded={settingsOpen}
-            aria-haspopup="dialog"
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="hdr-icon-sm" />
           </button>
 
           {settingsOpen && (
-            <div
-              role="dialog"
-              aria-label="Settings"
-              className="absolute right-0 top-11 z-50 w-72 rounded-xl border border-neutral-200 bg-white p-4 shadow-xl"
-            >
-              <div className="flex items-start justify-between gap-3">
+            <div className="hdr-settings-panel" role="dialog" aria-label="Settings">
+              {/* Panel Header */}
+              <div className="hdr-settings-head">
                 <div>
-                  <h2 className="text-sm font-semibold text-neutral-900">Appearance</h2>
-                  <p className="mt-0.5 text-xs text-neutral-500">Choose how HearthLedger looks.</p>
+                  <h2 className="hdr-settings-title">Appearance</h2>
+                  <p className="hdr-settings-sub">Choose how HurlesLedger looks.</p>
                 </div>
-                <Settings className="w-4 h-4 text-neutral-400 mt-0.5" />
+                <Settings className="hdr-icon-sm hdr-icon-muted" />
               </div>
 
-              {/* Base Theme Mode */}
-              <div className="mt-3 grid grid-cols-3 gap-1 rounded-lg bg-neutral-100 p-1">
+              {/* Theme Mode Toggle */}
+              <div className="hdr-theme-toggle">
                 {([
-                  { value: 'light', label: 'Light', Icon: Sun },
-                  { value: 'dark', label: 'Dark', Icon: Moon },
-                  { value: 'system', label: 'System', Icon: Monitor },
-                ] as const).map(({ value, label, Icon }) => (
+                  { value: 'light' as const, label: 'Light', Icon: Sun },
+                  { value: 'dark' as const, label: 'Dark', Icon: Moon },
+                  { value: 'system' as const, label: 'System', Icon: Monitor },
+                ]).map(({ value, label, Icon }) => (
                   <button
                     key={value}
                     type="button"
                     onClick={() => onChangeTheme(value)}
                     aria-pressed={themeMode === value}
-                    className={`flex flex-col items-center gap-1 rounded-md px-2 py-2 text-[11px] font-medium transition-colors ${
-                      themeMode === value
-                        ? 'bg-white text-neutral-900 shadow-sm'
-                        : 'text-neutral-600 hover:text-neutral-900'
-                    }`}
+                    className={`hdr-theme-option ${themeMode === value ? 'is-active' : ''}`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="hdr-icon-sm" />
                     {label}
                   </button>
                 ))}
               </div>
 
-              {/* Accent Color Picker — NEW */}
-              <div className="mt-4">
-                <p className="mb-2 text-xs font-medium text-neutral-500">Accent Color</p>
-                <div className="grid grid-cols-4 gap-2">
+              {/* Accent Color Picker */}
+              <div className="hdr-accent-section">
+                <p className="hdr-accent-label">Accent Color</p>
+                <div className="hdr-accent-grid">
                   {ACCENT_COLORS.map((accent) => (
                     <button
                       key={accent.id}
                       type="button"
                       onClick={() => onChangeAccent(accent.id)}
                       title={accent.label}
-                      className={`relative w-full aspect-square rounded-lg transition-transform hover:scale-105 ${
-                        accentColor === accent.id ? 'ring-2 ring-neutral-400 ring-offset-2' : ''
-                      }`}
-                      style={{ backgroundColor: accent.hex }}
+                      className={`hdr-accent-swatch ${accentColor === accent.id ? 'is-selected' : ''}`}
+                      style={{ '--accent-hex': accent.hex } as React.CSSProperties}
                     >
                       {accentColor === accent.id && (
-                        <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">✓</span>
+                        <span className="hdr-accent-check">✓</span>
                       )}
                     </button>
                   ))}
                 </div>
                 <button
                   type="button"
-                  onClick={() => onChangeAccent(null)}
-                  className="mt-2 w-full text-xs text-center text-neutral-500 hover:text-neutral-700"
+                  onClick={() => onChangeAccent(DEFAULT_ACCENT)}
+                  className="hdr-reset-link"
                 >
                   Reset to default
                 </button>
               </div>
 
-              <div className="mt-4 border-t border-neutral-100 pt-3">
-                <div className="mb-2 truncate text-xs text-neutral-600" title={userEmail}>
-                  Signed in as <span className="font-medium text-neutral-800">{userEmail}</span>
+              {/* Account & Sign Out */}
+              <div className="hdr-account-section">
+                <div className="hdr-email-display" title={userEmail}>
+                  Signed in as <span className="hdr-email">{userEmail}</span>
                 </div>
                 {signOutError && (
-                  <p role="alert" className="mb-2 text-xs text-rose-700">{signOutError}</p>
+                  <p role="alert" className="hdr-error-text">{signOutError}</p>
                 )}
                 <button
                   type="button"
@@ -233,9 +224,9 @@ export const Header: React.FC<HeaderProps> = ({
                       setSignOutError(error instanceof Error ? error.message : 'Sign out failed.');
                     }
                   }}
-                  className="inline-flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
+                  className="hdr-signout-btn"
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="hdr-icon-sm" />
                   Sign out
                 </button>
               </div>

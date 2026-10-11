@@ -17,6 +17,7 @@ export const PasswordRecoveryScreen: React.FC<PasswordRecoveryScreenProps> = ({ 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage('');
+
     if (password.length < 6) {
       setErrorMessage('Your password must be at least 6 characters.');
       return;
@@ -45,12 +46,13 @@ export const PasswordRecoveryScreen: React.FC<PasswordRecoveryScreenProps> = ({ 
           <div className="w-10 h-10 rounded-xl bg-neutral-900 text-white flex items-center justify-center">
             <Wallet className="w-5 h-5" />
           </div>
-          <span className="text-lg font-bold tracking-tight">HearthLedger</span>
+          <span className="text-lg font-bold tracking-tight">HurlesLedger</span>
         </div>
 
         <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-5">
           {isSaved ? <CheckCircle2 className="w-5 h-5" /> : <LockKeyhole className="w-5 h-5" />}
         </div>
+
         <h1 className="text-2xl font-bold tracking-tight">
           {isSaved ? 'Password updated' : 'Choose a new password'}
         </h1>
@@ -71,7 +73,7 @@ export const PasswordRecoveryScreen: React.FC<PasswordRecoveryScreenProps> = ({ 
             onClick={onComplete}
             className="w-full rounded-lg bg-neutral-900 px-4 py-3 text-sm font-semibold text-white hover:bg-neutral-800"
           >
-            Continue to HearthLedger
+            Continue to HurlesLedger
           </button>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -90,6 +92,7 @@ export const PasswordRecoveryScreen: React.FC<PasswordRecoveryScreenProps> = ({ 
                 className="w-full rounded-lg border border-neutral-300 px-3.5 py-3 text-sm outline-none focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10"
               />
             </div>
+
             <div>
               <label htmlFor="confirm-password" className="block text-sm font-medium text-neutral-800 mb-1.5">
                 Confirm new password
@@ -105,6 +108,7 @@ export const PasswordRecoveryScreen: React.FC<PasswordRecoveryScreenProps> = ({ 
                 className="w-full rounded-lg border border-neutral-300 px-3.5 py-3 text-sm outline-none focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10"
               />
             </div>
+
             <button
               type="submit"
               disabled={isSubmitting}

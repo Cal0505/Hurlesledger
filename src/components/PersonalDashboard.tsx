@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   ArrowDownLeft, 
-  ArrowUpRight,
+  ArrowUpRight, 
   ReceiptText, 
   CheckCircle2, 
   Upload, 
@@ -9,7 +9,7 @@ import {
   ChevronRight,
   CreditCard
 } from 'lucide-react';
-import { HouseholdBill, Member, Transaction } from '../types/budget';
+import { HouseholdBill, Member, Transaction, ActiveTab } from '../types/budget';
 import { formatCurrency, formatDate, getOrdinalSuffix } from '../utils/formatters';
 import { getMemberShareForBill } from '../utils/storage';
 
@@ -20,7 +20,7 @@ interface PersonalDashboardProps {
   signedInUserId: string;
   userEmail: string;
   currencySymbol: string;
-  onNavigate: (tab: any, memberId?: string) => void;
+  onNavigate: (tab: ActiveTab, memberId?: string) => void;
   onOpenImportCsv: () => void;
   onOpenAddBill: () => void;
   onOpenAddTransaction: (prefill?: Partial<Transaction>) => void;
@@ -40,247 +40,207 @@ export const PersonalDashboard: React.FC<PersonalDashboardProps> = ({
 }) => {
   const signedInMember = members.find((member) => member.authUserId === signedInUserId)
     || members.find((member) => member.email?.trim().toLowerCase() === userEmail.trim().toLowerCase());
-
+  
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  
   const personalTransactions = signedInMember
     ? transactions.filter((transaction) =>
-      transaction.type === 'incoming' && transaction.fromMemberId === signedInMember.id
-    )
+        transaction.type === 'incoming' && transaction.fromMemberId === signedInMember.id
+      )
     : [];
+  
   const paidThisMonth = personalTransactions
     .filter((transaction) => transaction.date.startsWith(currentMonthKey))
     .reduce((sum, transaction) => sum + transaction.amount, 0);
+  
   const personalBills = signedInMember
     ? bills.filter((bill) =>
-      bill.isActive
-      && bill.participatingMemberIds.includes(signedInMember.id)
-      && (bill.frequency !== 'one-off' || bill.incurredDate?.startsWith(currentMonthKey))
-    )
+        bill.isActive &&
+        bill.participatingMemberIds.includes(signedInMember.id) &&
+        (bill.frequency !== 'one-off' || bill.incurredDate?.startsWith(currentMonthKey))
+      )
     : [];
+  
   const personalBillShare = personalBills.reduce(
     (sum, bill) => sum + (signedInMember ? getMemberShareForBill(signedInMember.id, bill, currentMonthKey) : 0),
     0
   );
+  
   const remainingDue = Math.max(0, personalBillShare - paidThisMonth);
+  
   const memberBalances = signedInMember
     ? [{
-      member: signedInMember,
-      totalShare: personalBillShare,
-      paid: paidThisMonth,
-      remaining: remainingDue,
-      isSettled: remainingDue === 0,
-    }]
+        member: signedInMember,
+        totalShare: personalBillShare,
+        paid: paidThisMonth,
+        remaining: remainingDue,
+        isSettled: remainingDue === 0,
+      }]
     : [];
+  
   const recentTransactions = [...personalTransactions]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 6);
-  const sortedUpcomingBills = [...personalBills].sort((a, b) => a.dueDay - b.dueDay);
-
+  
+  const sortedUpcomingBills = [...personalBills].sort((a, b) => {
+    if (a.dueDay !== undefined && b.dueDay !== undefined) return a.dueDay - b.dueDay;
+    return 0;
+  });
+  
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Welcome & Context Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-neutral-200">
+    <div className="dashboard-page">
+      {/* Welcome & Actions */}
+      <div className="dashboard-header-row">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-neutral-900 tracking-tight">
+          <h2 className="dashboard-title">
             Welcome back{signedInMember ? `, ${signedInMember.name}` : ''}
           </h2>
-          <p className="text-sm text-neutral-600 mt-0.5">
+          <p className="dashboard-subtitle">
             Your personal household overview.
           </p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onOpenImportCsv}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-neutral-700 bg-white border border-neutral-300 rounded-md hover:bg-neutral-50 transition-colors shadow-2xs"
-          >
-            <Upload className="w-3.5 h-3.5 text-neutral-600" />
+        <div className="dashboard-top-actions">
+          <button onClick={onOpenImportCsv} className="dash-btn dash-btn--secondary">
+            <Upload size={14} />
             <span>Import Bank CSV</span>
           </button>
-          <button
-            onClick={() => onNavigate('household-bills')}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-neutral-900 bg-neutral-100 hover:bg-neutral-200 rounded-md transition-colors"
-          >
-            <ReceiptText className="w-3.5 h-3.5" />
+          <button onClick={() => onNavigate('household-bills')} className="dash-btn dash-btn--secondary">
+            <ReceiptText size={14} />
             <span>Manage Bills</span>
           </button>
         </div>
       </div>
-
+      
       {!signedInMember && (
-        <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="dashboard-alert">
           Your account is not linked to a household member profile yet, so personal dashboard details are unavailable.
         </div>
       )}
-
-      {/* Personal financial summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-neutral-200 rounded-lg p-5 flex flex-col justify-between shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-neutral-600 uppercase tracking-wider">
-              Your Payments (This Month)
-            </span>
-            <div className="w-7 h-7 rounded-md bg-emerald-50 text-emerald-700 flex items-center justify-center">
-              <ArrowDownLeft className="w-4 h-4" />
+      
+      {/* Stats Cards */}
+      <div className="dashboard-stats-grid">
+        <div className="dashboard-stat-card">
+          <div className="dashboard-stat-card-header">
+            <span className="dashboard-stat-label">Your Payments (This Month)</span>
+            <div className="dashboard-stat-icon">
+              <ArrowDownLeft size={16} />
             </div>
           </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold tracking-tight text-neutral-900 tabular-nums">
-              {formatCurrency(paidThisMonth, currencySymbol)}
-            </div>
-            <div className="text-xs text-neutral-600 mt-1 flex items-center gap-1.5">
-              <span>Recorded for your member profile</span>
-            </div>
-          </div>
+          <p className="dashboard-stat-value">{formatCurrency(paidThisMonth, currencySymbol)}</p>
+          <p className="dashboard-stat-desc">Recorded for your member profile</p>
         </div>
-
-        <div className="bg-white border border-neutral-200 rounded-lg p-5 flex flex-col justify-between shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-neutral-600 uppercase tracking-wider">
-              Your Bill Share
-            </span>
-            <div className="w-7 h-7 rounded-md bg-amber-50 text-amber-700 flex items-center justify-center">
-              <ArrowUpRight className="w-4 h-4" />
+        
+        <div className="dashboard-stat-card">
+          <div className="dashboard-stat-card-header">
+            <span className="dashboard-stat-label">Your Bill Share</span>
+            <div className="dashboard-stat-icon">
+              <ArrowUpRight size={16} />
             </div>
           </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold tracking-tight text-neutral-900 tabular-nums">
-              {formatCurrency(personalBillShare, currencySymbol)}
-            </div>
-            <div className="text-xs text-neutral-600 mt-1">
-              <span>Your share of active bills</span>
-            </div>
-          </div>
+          <p className="dashboard-stat-value">{formatCurrency(personalBillShare, currencySymbol)}</p>
+          <p className="dashboard-stat-desc">Your share of active bills</p>
         </div>
-
-        <div className="bg-white border border-neutral-200 rounded-lg p-5 flex flex-col justify-between shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-neutral-600 uppercase tracking-wider">
-              Your Amount Due
-            </span>
-            <div className="w-7 h-7 rounded-md bg-blue-50 text-blue-700 flex items-center justify-center">
-              <CreditCard className="w-4 h-4" />
+        
+        <div className="dashboard-stat-card dashboard-stat-card--accent">
+          <div className="dashboard-stat-card-header">
+            <span className="dashboard-stat-label">Your Amount Due</span>
+            <div className="dashboard-stat-icon">
+              <CreditCard size={16} />
             </div>
           </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold tracking-tight text-neutral-900 tabular-nums">
-              {formatCurrency(remainingDue, currencySymbol)}
-            </div>
-            <div className="text-xs text-emerald-700 font-medium mt-1 flex items-center gap-1">
-              <span>After payments recorded this month</span>
-            </div>
-          </div>
+          <p className="dashboard-stat-value">{formatCurrency(remainingDue, currencySymbol)}</p>
+          <p className="dashboard-stat-desc">After payments recorded this month</p>
         </div>
-
-        <div className="bg-white border border-neutral-200 rounded-lg p-5 flex flex-col justify-between shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-neutral-600 uppercase tracking-wider">
-              Your Active Bills
-            </span>
-            <div className="w-7 h-7 rounded-md bg-rose-50 text-rose-700 flex items-center justify-center">
-              <ReceiptText className="w-4 h-4" />
+        
+        <div className="dashboard-stat-card">
+          <div className="dashboard-stat-card-header">
+            <span className="dashboard-stat-label">Your Active Bills</span>
+            <div className="dashboard-stat-icon">
+              <ReceiptText size={16} />
             </div>
           </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold tracking-tight text-neutral-900 tabular-nums">
-              {personalBills.length}
-            </div>
-            <div className="text-xs text-neutral-600 mt-1">
-              <span>{personalBills.length === 1 ? 'bill includes your profile' : 'bills include your profile'}</span>
-            </div>
-          </div>
+          <p className="dashboard-stat-value">{personalBills.length}</p>
+          <p className="dashboard-stat-desc">
+            {personalBills.length === 1 ? 'bill includes your profile' : 'bills include your profile'}
+          </p>
         </div>
       </div>
-
-      {/* Personal bill status and records */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Signed-in member bill status */}
-        <div className="lg:col-span-7 space-y-6">
-          <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-2xs">
-            <div className="flex items-center justify-between mb-5">
+      
+      {/* Main Content Grid */}
+      <div className="dashboard-content-grid">
+        {/* Left Column */}
+        <div className="dashboard-column-left">
+          <div className="dashboard-section">
+            <div className="dashboard-section-header">
               <div>
-                <h3 className="text-base font-semibold text-neutral-900">
-                  Your Bill Status
-                </h3>
-                <p className="text-xs text-neutral-600 mt-0.5">
+                <h3 className="dashboard-section-title">Your Bill Status</h3>
+                <p className="dashboard-section-subtitle">
                   Your bill share and payments recorded this month
                 </p>
               </div>
-              <button
+              <button 
                 onClick={() => signedInMember && onNavigate('members', signedInMember.id)}
-                className="text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                className="dashboard-link"
               >
-                <span>Your Profile</span>
-                <ChevronRight className="w-3.5 h-3.5" />
+                Your Profile <ChevronRight size={14} />
               </button>
             </div>
-
-            <div className="space-y-4">
+            
+            <div className="dashboard-list">
               {memberBalances.map(({ member, totalShare, paid, remaining, isSettled }) => {
                 const percent = totalShare > 0 ? Math.min(100, Math.round((paid / totalShare) * 100)) : 100;
                 
                 return (
-                  <div 
-                    key={member.id} 
-                    className="p-4 rounded-lg border border-neutral-200 hover:border-neutral-300 transition-colors bg-neutral-50/50"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-3">
+                  <div key={member.id} className="dashboard-member-card">
+                    <div className="dashboard-member-top">
+                      <div className="dashboard-member-avatar-row">
                         <div 
-                          className="w-8 h-8 rounded-full text-white text-xs font-semibold flex items-center justify-center shrink-0"
-                          style={{ backgroundColor: member.avatarColor }}
+                          className="dashboard-avatar"
+                          style={{ '--avatar-color': member.avatarColor } as React.CSSProperties}
                         >
                           {member.name.charAt(0)}
                         </div>
                         <div>
-                          <span className="font-semibold text-neutral-900 text-sm">
-                            {member.name}
-                          </span>
-                          <span className="text-xs text-neutral-600 ml-2">
-                            Your household profile
-                          </span>
+                          <span className="dashboard-member-name">{member.name}</span>
+                          <span className="dashboard-member-role">Your household profile</span>
                         </div>
                       </div>
-
-                      <div className="text-right">
+                      <div className="dashboard-member-status">
                         {isSettled ? (
-                          <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            Settled in Full
+                          <span className="dashboard-status-badge">
+                            <CheckCircle2 size={14} /> Settled in Full
                           </span>
                         ) : (
-                          <div className="text-xs text-neutral-900">
-                            <span className="text-amber-700 font-semibold tabular-nums">
-                              {formatCurrency(remaining, currencySymbol)}
-                            </span>
-                            <span className="text-neutral-600"> remaining</span>
-                          </div>
+                          <span className="dashboard-remaining">
+                            <strong>{formatCurrency(remaining, currencySymbol)}</strong> remaining
+                          </span>
                         )}
                       </div>
                     </div>
-
-                    {/* Progress Bar */}
-                    <div className="w-full bg-neutral-200 h-1.5 rounded-full overflow-hidden my-2.5">
-                      <div 
-                        className={`h-full transition-all duration-300 ${isSettled ? 'bg-emerald-500' : 'bg-blue-600'}`}
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs text-neutral-600 pt-1">
-                      <div className="tabular-nums">
-                        Contributed: <strong className="text-neutral-800">{formatCurrency(paid, currencySymbol)}</strong> of {formatCurrency(totalShare, currencySymbol)}
+                    
+                    <div className="dashboard-progress-container">
+                      <div className="dashboard-progress-bar">
+                        <div 
+                          className="dashboard-progress-fill"
+                          style={{ '--progress-width': `${percent}%`, '--progress-color': isSettled ? 'var(--success)' : 'var(--accent)' } as React.CSSProperties}
+                        />
                       </div>
-                      <div className="flex items-center gap-3">
-                        <button
+                    </div>
+                    
+                    <div className="dashboard-progress-footer">
+                      <span>
+                        Contributed: <strong>{formatCurrency(paid, currencySymbol)}</strong> of {formatCurrency(totalShare, currencySymbol)}
+                      </span>
+                      <div className="dashboard-action-buttons">
+                        <button 
                           onClick={() => onNavigate('members', member.id)}
-                          className="text-neutral-700 hover:text-neutral-900 font-medium underline underline-offset-2"
+                          className="dashboard-link dashboard-link--underlined"
                         >
                           View Profile
                         </button>
                         {!isSettled && (
-                          <button
+                          <button 
                             onClick={() => onOpenAddTransaction({
                               type: 'incoming',
                               fromMemberId: member.id,
@@ -288,7 +248,7 @@ export const PersonalDashboard: React.FC<PersonalDashboardProps> = ({
                               description: `${member.name} Bank Transfer - Household Split`,
                               category: 'Household Reimbursement'
                             })}
-                            className="text-blue-600 hover:text-blue-800 font-medium"
+                            className="dashboard-link dashboard-link--accent"
                           >
                             Record Payment
                           </button>
@@ -300,140 +260,101 @@ export const PersonalDashboard: React.FC<PersonalDashboardProps> = ({
               })}
             </div>
           </div>
-
-          {/*           Recent Transactions */}
-          <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-2xs">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-base font-semibold text-neutral-900">
-                  Your Recent Payments
-                </h3>
-                <p className="text-xs text-neutral-600 mt-0.5">
-                  Payments recorded for your household profile
+          
+          {/* Recent Payments */}
+          <div className="dashboard-section">
+            <h3 className="dashboard-section-title">Your Recent Payments</h3>
+            <p className="dashboard-section-subtitle">
+              Payments recorded for your household profile
+            </p>
+            
+            <div className="dashboard-transaction-list">
+              {recentTransactions.length === 0 ? (
+                <p className="dashboard-empty-text">
+                  No payments are recorded for your profile yet.
                 </p>
-              </div>
-            </div>
-
-            <div className="divide-y divide-neutral-100">
-              {recentTransactions.length === 0 && (
-                <p className="py-4 text-sm text-neutral-500">No payments are recorded for your profile yet.</p>
-              )}
-              {recentTransactions.map((tx) => {
-                return (
-                  <div key={tx.id} className="py-3 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 bg-emerald-50 text-emerald-700">
-                        <ArrowDownLeft className="w-4 h-4" />
+              ) : (
+                recentTransactions.map((tx) => (
+                  <div key={tx.id} className="dashboard-transaction-row">
+                    <div className="dashboard-transaction-left">
+                      <div className="dashboard-transaction-icon">
+                        <ArrowDownLeft size={16} />
                       </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-neutral-900 truncate">
-                          {tx.description}
-                        </div>
-                        <div className="text-xs text-neutral-600 flex items-center gap-2">
-                          <span>{formatDate(tx.date)}</span>
-                          <span aria-hidden="true">·</span>
-                          <span>{tx.category}</span>
+                      <div>
+                        <p className="dashboard-transaction-desc">{tx.description}</p>
+                        <p className="dashboard-transaction-meta">
+                          {formatDate(tx.date)} · {tx.category}
                           {tx.paymentMethod === 'cash' && (
-                            <>
-                              <span aria-hidden="true">·</span>
-                              <span className="font-medium text-emerald-700">Cash payment</span>
-                            </>
+                            <> · <span className="text-success">Cash payment</span></>
                           )}
-                        </div>
+                        </p>
                       </div>
                     </div>
-
-                    <div className="text-right shrink-0">
-                      <div className="text-sm font-semibold tabular-nums text-emerald-700">
-                        +{formatCurrency(tx.amount, currencySymbol)}
-                      </div>
-                    </div>
+                    <p className="dashboard-transaction-amount">
+                      +{formatCurrency(tx.amount, currencySymbol)}
+                    </p>
                   </div>
-                );
-              })}
+                ))
+              )}
             </div>
           </div>
         </div>
-
-        {/* Bills that include the signed-in member */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-2xs">
-            <div className="flex items-center justify-between mb-4">
+        
+        {/* Right Column */}
+        <div className="dashboard-column-right">
+          <div className="dashboard-section">
+            <div className="dashboard-section-header">
               <div>
-                <h3 className="text-base font-semibold text-neutral-900">
-                  Your Bills
-                </h3>
-                <p className="text-xs text-neutral-600 mt-0.5">
-                  Your share: <strong className="font-semibold text-neutral-900">{formatCurrency(personalBillShare, currencySymbol)}</strong>
+                <h3 className="dashboard-section-title">Your Bills</h3>
+                <p className="dashboard-section-subtitle">
+                  Your share: <strong>{formatCurrency(personalBillShare, currencySymbol)}</strong>
                 </p>
               </div>
-              <button
+              <button 
                 onClick={() => onNavigate('household-bills')}
-                className="text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                className="dashboard-link"
               >
-                <span>Edit Rules</span>
-                <ChevronRight className="w-3.5 h-3.5" />
+                Edit Rules <ChevronRight size={14} />
               </button>
             </div>
-
-            <div className="space-y-3">
-              {sortedUpcomingBills.length === 0 && (
-                <p className="py-4 text-sm text-neutral-500">No active bills currently include your profile.</p>
-              )}
-              {sortedUpcomingBills.map((bill) => {
-                const personalShare = signedInMember
-                  ? getMemberShareForBill(signedInMember.id, bill, currentMonthKey)
-                  : 0;
-
-                return (
-                  <div 
-                    key={bill.id}
-                    className="p-3.5 rounded-lg border border-neutral-200 bg-white hover:border-neutral-300 transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-semibold text-sm text-neutral-900 flex items-center gap-2">
-                          <span>{bill.name}</span>
-                        </div>
-                        <div className="text-xs text-neutral-600 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                          <span>Due {getOrdinalSuffix(bill.dueDay)} of month</span>
-                          <span aria-hidden="true">·</span>
-                          <span>{bill.category}</span>
-                        </div>
+            
+            <div className="dashboard-bill-list">
+              {sortedUpcomingBills.length === 0 ? (
+                <p className="dashboard-empty-text">
+                  No active bills currently include your profile.
+                </p>
+              ) : (
+                sortedUpcomingBills.map((bill) => {
+                  const personalShare = signedInMember
+                    ? getMemberShareForBill(signedInMember.id, bill, currentMonthKey)
+                    : 0;
+                  return (
+                    <div key={bill.id} className="dashboard-bill-card">
+                      <div className="dashboard-bill-left">
+                        <p className="dashboard-bill-name">{bill.name}</p>
+                        <p className="dashboard-bill-meta">
+                          Due the {bill.dueDay ? getOrdinalSuffix(bill.dueDay) : '?'} of the month · {bill.category}
+                        </p>
                       </div>
-
-                      <div className="text-right shrink-0">
-                        <div className="text-sm font-bold text-neutral-900 tabular-nums">
-                          {formatCurrency(personalShare, currencySymbol)}
-                        </div>
-                        <div className="text-[11px] text-neutral-600 tabular-nums">
-                          Your share
-                        </div>
+                      <div className="dashboard-bill-amount">
+                        <p className="dashboard-bill-share">{formatCurrency(personalShare, currencySymbol)}</p>
+                        <p className="dashboard-bill-label">Your share</p>
                       </div>
                     </div>
-
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
-
-            <div className="mt-4 pt-4 border-t border-neutral-200">
-              <button
-                onClick={onOpenAddBill}
-                className="w-full py-2 px-3 border border-dashed border-neutral-300 hover:border-neutral-400 rounded-md text-xs font-medium text-neutral-700 hover:text-neutral-900 transition-colors flex items-center justify-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Another Household Bill</span>
-              </button>
-            </div>
+            
+            <button onClick={onOpenAddBill} className="dashboard-add-bill-btn">
+              <Plus size={14} /> Add Another Household Bill
+            </button>
           </div>
-
-          {/* Quick House Rules Banner */}
-          <div className="bg-neutral-100 text-neutral-900 rounded-lg p-5">
-            <h4 className="font-semibold text-sm tracking-tight text-neutral-900 mb-1">
-              How Split Calculations Work
-            </h4>
-            <p className="text-xs text-neutral-600 leading-relaxed">
+          
+          {/* Info Banner */}
+          <div className="dashboard-info-banner">
+            <h4 className="dashboard-info-title">How Split Calculations Work</h4>
+            <p className="dashboard-info-text">
               Your share is calculated from the active household bills that include your profile. Payments recorded against your profile reduce the amount due.
             </p>
           </div>

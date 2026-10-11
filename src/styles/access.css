@@ -1,0 +1,469 @@
+/* ================================================
+   access.css — Household Access / Request Screen
+================================================ */
+
+.access-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background-color: var(--bg-100);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Background glow — matches auth screen */
+.access-glow {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.12;
+  background-color: var(--accent);
+  pointer-events: none;
+}
+.access-glow-1 {
+  top: -150px;
+  left: -100px;
+}
+.access-glow-2 {
+  width: 450px;
+  height: 450px;
+  bottom: -100px;
+  right: -100px;
+  opacity: 0.08;
+}
+
+.access-container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* Icon */
+.access-icon-wrap {
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+.access-icon {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+/* Card — matches auth card exactly */
+.access-card {
+  background-color: var(--ui-50);
+  border: 1px solid var(--border-normal);
+  border-radius: var(--radius-2xl);
+  padding: 2.25rem;
+  box-shadow: var(--shadow-xl);
+  text-align: center;
+}
+
+.access-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--text-900);
+  margin: 0 0 0.5rem 0;
+}
+
+.access-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-500);
+  margin: 0 0 2rem 0;
+  line-height: 1.6;
+}
+
+/* Pending box */
+.access-pending-box {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 15%, transparent);
+  text-align: left;
+}
+.access-pending-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.access-pending-text {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-500);
+  line-height: 1.5;
+}
+.access-check-btn {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-normal);
+  background-color: var(--ui-50);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-800);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.access-check-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Form elements */
+.access-form {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  text-align: left;
+}
+.access-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-500);
+}
+.access-input-wrapper {
+  position: relative;
+}
+.access-input-icon {
+  position: absolute;
+  left: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-400);
+  pointer-events: none;
+}
+.access-input {
+  width: 100%;
+  padding: 0.875rem 1rem 0.875rem 2.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-normal);
+  background-color: var(--ui-100);
+  color: var(--text-900);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.access-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.access-input::placeholder {
+  color: var(--text-400);
+}
+.access-input-note {
+  margin-top: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--text-400);
+}
+
+/* Color picker */
+.access-color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+.access-color-btn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+}
+.access-color-btn:hover {
+  transform: scale(1.05);
+}
+.access-color-btn.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.access-color-btn svg {
+  color: white;
+  stroke-width: 3;
+}
+
+/* Primary Button */
+.access-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  border: none;
+  background-color: var(--accent);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.1s ease;
+  margin-top: 0.5rem;
+}
+.access-btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+.access-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Error text */
+.access-error-text {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  background-color: var(--danger-light);
+  color: var(--danger);
+  font-size: 0.8125rem;
+  text-align: left;
+}
+.access-error-spacing {
+  margin-top: 1rem;
+}
+
+/* Sign out link — FIXED icon next to text */
+.access-sign-out-btn {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  background: transparent;
+  border: none;
+  color: var(--text-500);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 1.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+  width: auto !important;
+  white-space: nowrap;
+}
+.access-sign-out-btn:hover {
+  color: var(--accent);
+  background-color: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.access-sign-out-btn svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  display: inline-block !important;
+}
+
+/* ================================================
+   Access Requests Panel (admin approval list)
+================================================ */
+.access-panel {
+  background-color: var(--ui-50);
+  border: 1px solid var(--border-normal);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-md);
+  text-align: left;
+}
+
+.access-header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.access-heading {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-900);
+  margin: 0;
+}
+
+.access-count-badge {
+  background-color: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  line-height: 1.4;
+}
+
+.access-subtext {
+  font-size: 0.875rem;
+  color: var(--text-500);
+  margin: 0 0 1rem 0;
+  line-height: 1.5;
+}
+
+.access-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-normal);
+  background-color: var(--ui-100);
+  color: var(--text-600);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  justify-content: center;
+}
+.access-refresh-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background-color: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.access-refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.access-refresh-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  margin-bottom: 1rem;
+  transition: background-color 0.2s ease;
+}
+.access-refresh-link:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.access-refresh-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.access-requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.access-request-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: var(--ui-100);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.access-request-card:hover {
+  border-color: var(--border-normal);
+  background-color: var(--ui-50);
+}
+
+.access-requester-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-900);
+  margin: 0 0 0.125rem 0;
+}
+
+.access-requester-email {
+  font-size: 0.8125rem;
+  color: var(--text-600);
+  margin: 0 0 0.125rem 0;
+}
+
+.access-requester-date {
+  font-size: 0.75rem;
+  color: var(--text-400);
+  margin: 0;
+}
+
+.access-action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.access-deny-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: none;
+  background-color: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.access-deny-btn:hover:not(:disabled) {
+  background-color: var(--danger);
+  color: white;
+}
+.access-deny-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.access-approve-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: none;
+  background-color: var(--accent);
+  color: white;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.1s ease;
+}
+.access-approve-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+.access-approve-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -1,0 +1,251 @@
+.settlement-view {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 100%;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+  background-color: var(--page-bg);
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+.settlement-inner {
+  max-width: 90rem;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.settlement-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+@media (min-width: 640px) {
+  .settlement-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.settlement-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.01em;
+}
+
+.settlement-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.settlement-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.settlement-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+}
+
+.settlement-btn--copy {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.settlement-btn--copy:hover {
+  background-color: var(--ui-100);
+}
+
+.settlement-btn--export {
+  background-color: var(--ui-100);
+  color: var(--text-primary);
+}
+
+.settlement-btn--export:hover {
+  background-color: var(--ui-200);
+}
+
+.settlement-icon-sm {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.settlement-icon--success {
+  color: var(--success);
+}
+
+.settlement-table-container {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.settlement-table-scroll {
+  overflow-x: auto;
+}
+
+.settlement-table {
+  width: 100%;
+  text-align: left;
+  font-size: 0.875rem;
+  border-collapse: collapse;
+  color: var(--text-primary);
+}
+
+.settlement-table-head {
+  background-color: var(--ui-50);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.settlement-table-th {
+  padding: 0.875rem 1.25rem;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.settlement-table-th--bill { min-width: 13.75rem; }
+.settlement-table-th--num { text-align: right; min-width: 7rem; }
+.settlement-table-th--member { text-align: right; min-width: 7.5rem; }
+
+.settlement-member-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+.settlement-avatar-sm {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background-color: var(--accent);
+  color: #ffffff;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.settlement-name-truncate {
+  max-width: 6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.settlement-table-row {
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.15s ease;
+}
+
+.settlement-table-row:hover {
+  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.settlement-table-td {
+  padding: 1rem 1.25rem;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.settlement-table-td--bill { width: 13.75rem; }
+.settlement-table-td--num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.settlement-bill-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.125rem;
+}
+
+.settlement-bill-meta {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.settlement-amount--active {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.settlement-amount--excluded {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.settlement-table-footer {
+  border-top: 2px solid var(--border-color);
+  background-color: var(--ui-50);
+  font-size: 0.75rem;
+}
+
+.settlement-total-row {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.settlement-total-label {
+  color: var(--text-secondary);
+}
+
+.settlement-total-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.settlement-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.settlement-status-badge--paid {
+  background-color: var(--success-light);
+  color: var(--success);
+}
+
+.settlement-status-badge--pending {
+  background-color: var(--warning-light);
+  color: var(--warning);
+}

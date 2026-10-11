@@ -1,18 +1,6 @@
-import React, { useState } from 'react';
-import { 
-  ReceiptText, 
-  Plus, 
-  Edit3, 
-  Trash2, 
-  Check, 
-  X, 
-  Calendar, 
-  AlertCircle,
-  HelpCircle,
-  Sparkles,
-  Info
-} from 'lucide-react';
-import { HouseholdBill, Member } from '../types/budget';
+import React, { useState, useMemo } from 'react';
+import { Plus, Edit3, Trash2, Info, Search } from 'lucide-react';
+import { HouseholdBill, Member, BillCategory } from '../types/budget';
 import { formatCurrency, formatDate, formatMonthLabel, getOrdinalSuffix } from '../utils/formatters';
 import { getBillPerPersonShare } from '../utils/storage';
 
@@ -28,6 +16,18 @@ interface HouseholdBillsViewProps {
   onToggleBillActive: (billId: string) => void;
 }
 
+const ALL_CATEGORIES: BillCategory[] = [
+  'Utilities',
+  'Rent / Mortgage',
+  'Food & Groceries',
+  'Transport',
+  'Entertainment',
+  'Household',
+  'Household Bills',
+  'Other',
+  'Other Expense',
+];
+
 export const HouseholdBillsView: React.FC<HouseholdBillsViewProps> = ({
   bills,
   members,
@@ -39,307 +39,308 @@ export const HouseholdBillsView: React.FC<HouseholdBillsViewProps> = ({
   onToggleMemberInBill,
   onToggleBillActive,
 }) => {
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<BillCategory | 'all'>('all');
 
-  const filteredBills = bills.filter((b) => {
-    if (categoryFilter === 'all') return true;
-    return b.category === categoryFilter;
-  });
+  const selectableMonths = useMemo(() => {
+    const list = [{ key: 'all', label: 'All Months' }];
+    for (let i = 0; i < 6; i++) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      list.push({ key, label });
+    }
+    return list;
+  }, []);
 
-  const totalMonthlyActive = bills
+  const filteredBills = useMemo(() => {
+    return bills.filter((bill) => {
+      const matchesSearch = searchQuery.trim() === '' ||
+        bill.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (bill.notes?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+      const matchesCategory = selectedCategory === 'all' || bill.category === selectedCategory;
+      const billMonthKey = bill.incurredDate
+        ? bill.incurredDate.slice(0, 7)
+        : bill.createdAt.slice(0, 7);
+      const matchesMonth = selectedMonth === 'all' || billMonthKey === selectedMonth;
+      return matchesSearch && matchesCategory && matchesMonth;
+    });
+  }, [bills, searchQuery, selectedCategory, selectedMonth]);
+
+  const totalMonthlyActive = filteredBills
     .filter((b) => b.isActive && b.frequency !== 'one-off')
     .reduce((sum, b) => sum + b.amount, 0);
 
-  const categories = Array.from(new Set(bills.map((b) => b.category)));
-  const groupedBills = new Map<string, HouseholdBill[]>();
-  filteredBills.forEach((bill) => {
-    const groupKey = bill.frequency === 'one-off'
-      ? bill.incurredDate?.slice(0, 7) || 'undated'
-      : 'recurring';
-    groupedBills.set(groupKey, [...(groupedBills.get(groupKey) || []), bill]);
-  });
-  const billGroups = Array.from(groupedBills, ([key, groupBills]) => ({ key, bills: groupBills }))
-    .sort((a, b) => {
-      if (a.key === 'recurring') return -1;
-      if (b.key === 'recurring') return 1;
-      return b.key.localeCompare(a.key);
+  const groupedBills = useMemo(() => {
+    const groups = new Map<string, HouseholdBill[]>();
+    filteredBills.forEach((bill) => {
+      const groupKey = bill.frequency === 'one-off'
+        ? bill.incurredDate?.slice(0, 7) || 'undated'
+        : 'recurring';
+      groups.set(groupKey, [...(groups.get(groupKey) || []), bill]);
     });
+    return Array.from(groups.entries()).sort((a, b) => {
+      if (a[0] === 'recurring') return -1;
+      if (b[0] === 'recurring') return 1;
+      return b[0].localeCompare(a[0]);
+    });
+  }, [filteredBills]);
+
+  const filterSummary = useMemo(() => {
+    const parts: string[] = [];
+    if (selectedMonth !== 'all') {
+      parts.push(selectableMonths.find(m => m.key === selectedMonth)?.label || '');
+    }
+    if (selectedCategory !== 'all') parts.push(selectedCategory);
+    if (searchQuery) parts.push(`"${searchQuery}"`);
+    return parts.join(' • ');
+  }, [selectedMonth, selectedCategory, searchQuery, selectableMonths]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Top Banner & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-neutral-200">
-        <div>
-          <h2 className="text-xl md:text-2xl font-bold text-neutral-900 tracking-tight">
-            Household Bills & Split Rules
-          </h2>
-          <p className="text-sm text-neutral-600 mt-0.5">
-            Manage shared household expenses. If a member does not use a bill, exclude them to split it only among active users.
+    <div className="bills-page">
+      <div className="bills-top-bar">
+        <div className="bills-title-group">
+          <h2 className="bills-title">Household Bills & Split Rules</h2>
+          <p className="bills-subtitle">
+            {filteredBills.length} bill{filteredBills.length !== 1 ? 's' : ''}
+            {filterSummary && ` • ${filterSummary}`}
           </p>
         </div>
-
-        <div className="flex items-center gap-2">
+        <div className="bills-actions">
           <button
             onClick={onOpenAddBill}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-neutral-900 hover:bg-neutral-800 rounded-md transition-colors shadow-xs"
+            className="bills-btn bills-btn--accent"
           >
-            <Plus className="w-4 h-4" />
+            <Plus size={16} />
             <span>Add Household Bill</span>
           </button>
         </div>
       </div>
 
-      {/* Info Callout explaining Deezer & exclusion rule */}
-      <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 flex items-start gap-3">
-        <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-        <div className="text-xs text-neutral-700 leading-relaxed">
-          <strong className="font-semibold text-neutral-900">Custom Participation Rule in Action: </strong>
-          Check or uncheck member tags on any bill below to include or exclude them instantly. 
-          For example, if <strong>Carl</strong> does not use the <strong>Deezer Family</strong> subscription, 
-          unchecking Carl splits the £14.99 equally between <strong>Chelsea, Ebony, and Lora (£5.00 each)</strong>, 
-          leaving Carl's share at £0.00.
-        </div>
-      </div>
-
-      {/* Aggregate Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-neutral-200 rounded-lg p-5 shadow-2xs">
-          <span className="text-xs font-medium text-neutral-600 uppercase tracking-wider block">
-            Total Monthly Shared Bills
-          </span>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-neutral-900 tabular-nums">
+      {/* ✅ 1. STATS CARDS — FIRST */}
+      <div className="bills-stats-grid">
+        <div className="bill-card">
+          <span className="bill-card__label">Total Monthly Shared Bills</span>
+          <div className="bill-card__amount">
             {formatCurrency(totalMonthlyActive, currencySymbol)}
           </div>
-          <span className="text-xs text-neutral-600 mt-1 block">
-            {bills.filter((b) => b.isActive && b.frequency !== 'one-off').length} active recurring commitments
+          <span className="bill-card__meta">
+            {filteredBills.filter((b) => b.isActive && b.frequency !== 'one-off').length} active recurring commitments
           </span>
         </div>
-
-        <div className="bg-white border border-neutral-200 rounded-lg p-5 shadow-2xs">
-          <span className="text-xs font-medium text-neutral-600 uppercase tracking-wider block">
-            Household Size
-          </span>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-neutral-900 tabular-nums">
-            {members.length} Members
-          </div>
-          <span className="text-xs text-neutral-600 mt-1 block">
+        <div className="bill-card">
+          <span className="bill-card__label">Household Size</span>
+          <div className="bill-card__amount">{members.length} Members</div>
+          <span className="bill-card__meta">
             {members.map((m) => m.name).join(', ')}
           </span>
         </div>
-
-        <div className="bg-white border border-neutral-200 rounded-lg p-5 shadow-2xs">
-          <span className="text-xs font-medium text-neutral-600 uppercase tracking-wider block">
-            Primary Direct Debit Account
-          </span>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-blue-700">
-            Carl's Bank Account
+        <div className="bill-card">
+          <span className="bill-card__label">Primary Account Holder</span>
+          <div className="bill-card__amount">
+            {members.find((m) => m.isAccountHolder)?.name || 'Account Holder'}
           </div>
-          <span className="text-xs text-neutral-600 mt-1 block">
-            Collects split reimbursements
-          </span>
+          <span className="bill-card__meta">Collects split reimbursements</span>
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-1 bg-neutral-100 p-1 rounded-md overflow-x-auto">
-        <button
-          onClick={() => setCategoryFilter('all')}
-          className={`px-3 py-1.5 text-xs font-medium rounded transition-colors whitespace-nowrap ${
-            categoryFilter === 'all'
-              ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
-              : 'text-neutral-600 hover:text-neutral-900'
-          }`}
-        >
-          All Bills ({bills.length})
-        </button>
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setCategoryFilter(cat)}
-            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors whitespace-nowrap ${
-              categoryFilter === cat
-                ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
-                : 'text-neutral-600 hover:text-neutral-900'
-            }`}
-          >
-            {cat} ({bills.filter((b) => b.category === cat).length})
-          </button>
-        ))}
+      {/* ✅ 2. INFO CALLOUT — UNDER STATS */}
+      <div className="bills-info-callout">
+        <Info size={20} className="bills-info-icon" />
+        <div className="bills-info-text">
+          <strong>Custom Participation Rule in Action:</strong>
+          Check or uncheck member tags on any bill below to include or exclude them instantly.
+          For example, if Carl does not use the Deezer Family subscription,
+          unchecking Carl splits the bill equally between active members.
+        </div>
       </div>
 
-      {/* Bills Cards Grid */}
-      <div className="space-y-8">
-        {billGroups.map((group) => (
-          <section key={group.key} className="space-y-3">
-            <div className="flex items-center justify-between border-b border-neutral-200 pb-2">
-              <h3 className="text-sm font-bold text-neutral-800">
-                {group.key === 'recurring'
-                  ? 'Recurring household bills'
-                  : group.key === 'undated' ? 'Statement bills · date unavailable' : `Statement bills · ${formatMonthLabel(group.key)}`}
-              </h3>
-              {group.key !== 'recurring' && (
-                <span className="text-xs font-semibold text-neutral-600 tabular-nums">
-                  {formatCurrency(group.bills.reduce((sum, bill) => sum + bill.amount, 0), currencySymbol)}
-                </span>
-              )}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {group.bills.map((bill) => {
-          const perPerson = getBillPerPersonShare(bill);
-          const participantCount = bill.participatingMemberIds.length;
-          const payerIds = bill.payerMemberIds?.length ? bill.payerMemberIds : [bill.payerMemberId];
-          const payers = members.filter((member) => payerIds.includes(member.id));
-          const excludedMembers = members.filter((m) => !bill.participatingMemberIds.includes(m.id));
+      {/* ✅ 3. CONTROLS BAR — UNDER INFO CALLOUT */}
+      <div className="bills-controls-bar">
+        <select
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(e.target.value)}
+          className="bills-month-select"
+        >
+          {selectableMonths.map((m) => (
+            <option key={m.key} value={m.key}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+        <div className="bills-search-wrapper">
+          <Search className="bills-search-icon w-4 h-4" />
+          <input
+            type="text"
+            placeholder="Search bills..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="bills-search-input"
+          />
+        </div>
+        <select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value as BillCategory | 'all')}
+          className="bills-category-select"
+        >
+          <option value="all">All Categories</option>
+          {ALL_CATEGORIES.map((cat) => (
+            <option key={cat} value={cat}>
+              {cat}
+            </option>
+          ))}
+        </select>
+      </div>
 
-          return (
-            <div
-              key={bill.id}
-              className={`bg-white border rounded-lg p-5 flex flex-col justify-between transition-all shadow-2xs ${
-                bill.isActive ? 'border-neutral-200 hover:border-neutral-300' : 'border-neutral-200 opacity-60 bg-neutral-50/50'
-              }`}
+      {/* Bill Groups */}
+      <div className="bills-groups">
+        {groupedBills.length === 0 ? (
+          <div className="bills-empty-state">
+            <p>No bills found matching your filters.</p>
+            <button
+              onClick={() => {
+                setSelectedMonth('all');
+                setSelectedCategory('all');
+                setSearchQuery('');
+              }}
+              className="bills-btn bills-btn--accent"
+              style={{ marginRight: '0.75rem' }}
             >
-              <div>
-                {/* Header */}
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-base font-bold text-neutral-900 tracking-tight">
+              Clear Filters
+            </button>
+            {canManageBills && (
+              <button onClick={onOpenAddBill} className="bills-btn bills-btn--accent">
+                + Add Your First Bill
+              </button>
+            )}
+          </div>
+        ) : (
+          groupedBills.map(([groupKey, groupBills]) => (
+            <section key={groupKey} className="bills-group">
+              <div className="bills-group-header">
+                <h3 className="bills-group-title">
+                  {groupKey === 'recurring'
+                    ? 'Recurring household bills'
+                    : groupKey === 'undated'
+                      ? 'Statement bills · date unavailable'
+                      : `Statement bills · ${formatMonthLabel(groupKey)}`}
+                </h3>
+                {groupKey !== 'recurring' && (
+                  <span className="bills-group-total">
+                    {formatCurrency(
+                      groupBills.reduce((sum, bill) => sum + bill.amount, 0),
+                      currencySymbol
+                    )}
+                  </span>
+                )}
+              </div>
+              <div className="bills-grid">
+                {groupBills.map((bill) => {
+                  const perPerson = getBillPerPersonShare(bill);
+                  const participantCount = bill.participatingMemberIds.length;
+                  const excludedMembers = members.filter((m) => !bill.participatingMemberIds.includes(m.id));
+                  return (
+                    <div
+                      key={bill.id}
+                      className={`bill-card ${!bill.isActive ? 'bill-card--inactive' : ''}`}
+                    >
+                      <h4 className="bill-card__name">
                         {bill.name}
-                      </h3>
-                      {!bill.isActive && (
-                        <span className="text-[11px] font-medium text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded">
-                          Paused
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-neutral-600 mt-1 flex items-center gap-2 flex-wrap">
-                      <span>{bill.category}</span>
-                      <span aria-hidden="true">·</span>
-                      <span>
+                        {!bill.isActive && <span className="bill-badge">Paused</span>}
+                      </h4>
+                      <p className="bill-card__meta">
+                        {bill.category} ·{' '}
                         {bill.frequency === 'one-off'
                           ? `Statement date ${bill.incurredDate ? formatDate(bill.incurredDate) : getOrdinalSuffix(bill.dueDay)}`
                           : `Due ${getOrdinalSuffix(bill.dueDay)} of month`}
-                      </span>
-                      <span aria-hidden="true">·</span>
-                      <span>
-                        Paid by {payers.length > 0
-                          ? `${payers.map((member) => member.name).join(' & ')}${payers.length > 1 ? ' (joint account)' : ''}`
-                          : 'account holder'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="text-right shrink-0">
-                    <div className="text-xl font-bold text-neutral-900 tabular-nums">
-                      {formatCurrency(bill.amount, currencySymbol)}
-                    </div>
-                    <div className="text-xs text-neutral-600 tabular-nums font-medium">
-                      {bill.frequency}
-                    </div>
-                  </div>
-                </div>
-
-                {bill.notes && (
-                  <p className="text-xs text-neutral-600 mt-3 pt-3 border-t border-neutral-100 leading-relaxed">
-                    {bill.notes}
-                  </p>
-                )}
-
-                {/* Interactive Member Split Toggles */}
-                <div className="mt-4 pt-4 border-t border-neutral-100">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-neutral-700 uppercase tracking-wider">
-                      Participants ({participantCount} of {members.length})
-                    </span>
-                    <span className="text-xs font-semibold text-blue-700 tabular-nums">
-                      {participantCount > 0 
-                        ? `${formatCurrency(perPerson, currencySymbol)} each` 
-                        : 'No participants'}
-                    </span>
-                  </div>
-
-                  {/* Toggle Chips */}
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    {members.map((member) => {
-                      const isIncluded = bill.participatingMemberIds.includes(member.id);
-                      return (
+                        {' · '}
+                        {bill.frequency}
+                      </p>
+                      <div className="bill-card__amount">
+                        {formatCurrency(bill.amount, currencySymbol)}
+                      </div>
+                      {bill.notes && (
+                        <p className="bill-card__notes">{bill.notes}</p>
+                      )}
+                      <div className="bill-card__split-section">
+                        <div className="bill-card__split-header">
+                          <span className="bill-card__split-label">
+                            Participants ({participantCount} of {members.length})
+                          </span>
+                          <span className="bill-card__perperson">
+                            {participantCount > 0
+                              ? `${formatCurrency(perPerson, currencySymbol)} each`
+                              : 'No participants'}
+                          </span>
+                        </div>
+                        <div className="bill-card__members-grid">
+                          {members.map((member) => {
+                            const isIncluded = bill.participatingMemberIds.includes(member.id);
+                            return (
+                              <button
+                                key={member.id}
+                                type="button"
+                                onClick={() => onToggleMemberInBill(bill.id, member.id)}
+                                className={`bill-member-chip ${isIncluded ? 'bill-member-chip--included' : 'bill-member-chip--excluded'}`}
+                              >
+                                <div className="bill-member-chip__inner">
+                                  <div
+                                    className="bill-member-chip__avatar"
+                                    data-member-color={member.avatarColor}
+                                  >
+                                    {member.name.charAt(0)}
+                                  </div>
+                                  <span className="bill-member-chip__name">{member.name}</span>
+                                </div>
+                                <span className="bill-member-chip__share">
+                                  {isIncluded
+                                    ? formatCurrency(perPerson, currencySymbol)
+                                    : `${currencySymbol}0 (excluded)`}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {excludedMembers.length > 0 && (
+                          <p className="bill-card__excluded-note">
+                            Excluded: {excludedMembers.map((m) => m.name).join(', ')}
+                            · saves {formatCurrency(perPerson, currencySymbol)} each
+                          </p>
+                        )}
+                      </div>
+                      <div className="bill-card__footer">
                         <button
-                          key={member.id}
-                          type="button"
-                          onClick={() => onToggleMemberInBill(bill.id, member.id)}
-                          className={`flex items-center justify-between px-2.5 py-1.5 rounded-md border text-xs transition-colors ${
-                            isIncluded
-                              ? 'border-neutral-900 bg-neutral-900 text-white font-medium shadow-2xs'
-                              : 'border-dashed border-neutral-300 bg-white text-neutral-500 hover:border-neutral-400 hover:text-neutral-800'
-                          }`}
+                          onClick={() => onToggleBillActive(bill.id)}
+                          className="bill-card__toggle-btn"
                         >
-                          <div className="flex items-center gap-2 truncate">
-                            <div
-                              className="w-4 h-4 rounded-full text-white text-[9px] font-bold flex items-center justify-center shrink-0"
-                              style={{ backgroundColor: member.avatarColor }}
-                            >
-                              {member.name.charAt(0)}
-                            </div>
-                            <span className="truncate">{member.name}</span>
-                          </div>
-                          <div className="shrink-0 tabular-nums ml-1">
-                            {isIncluded ? (
-                              <span className="text-[11px] font-mono text-neutral-200">
-                                {formatCurrency(perPerson, currencySymbol)}
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-neutral-400">
-                                £0 (excluded)
-                              </span>
-                            )}
-                          </div>
+                          {bill.isActive ? 'Pause Bill' : 'Resume Bill'}
                         </button>
-                      );
-                    })}
-                  </div>
-
-                  {excludedMembers.length > 0 && (
-                    <div className="text-[11px] text-amber-700 mt-2 flex items-center gap-1 font-medium">
-                      <span>Excluded:</span>
-                      <span>{excludedMembers.map((m) => m.name).join(', ')}</span>
-                      <span className="text-neutral-400">· saves {formatCurrency(perPerson, currencySymbol)} each</span>
+                        <div className="bill-card__actions">
+                          <button
+                            onClick={() => onEditBill(bill)}
+                            className="bill-card__icon-btn"
+                            title="Edit bill details"
+                          >
+                            <Edit3 size={16} />
+                          </button>
+                          <button
+                            onClick={() => onDeleteBill(bill.id)}
+                            className="bill-card__icon-btn bill-card__icon-btn--delete"
+                            title="Delete bill"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
+                  );
+                })}
               </div>
-
-              {/* Card Footer Actions */}
-              <div className="mt-5 pt-3 border-t border-neutral-100 flex items-center justify-between">
-                <button
-                  onClick={() => onToggleBillActive(bill.id)}
-                  className="text-xs text-neutral-600 hover:text-neutral-900 font-medium"
-                >
-                  {bill.isActive ? 'Pause Bill' : 'Resume Bill'}
-                </button>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => onEditBill(bill)}
-                    className="p-1.5 text-neutral-500 hover:text-neutral-900 rounded hover:bg-neutral-100 transition-colors"
-                    title="Edit bill details"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => onDeleteBill(bill.id)}
-                    className="p-1.5 text-neutral-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors"
-                    title="Delete bill"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-            </div>
-          </section>
-        ))}
+            </section>
+          ))
+        )}
       </div>
     </div>
   );

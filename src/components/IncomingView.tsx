@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Upload, Plus, Search, ChevronDown, ChevronUp, Trash2, Edit3 } from 'lucide-react';
+import { Upload, Plus, ChevronDown, ChevronUp, Trash2, Edit3 } from 'lucide-react';
 import { HouseholdBill, Member, Transaction } from '../types/budget';
 import { formatCurrency, formatDate } from '../utils/formatters';
 
@@ -13,6 +13,11 @@ interface IncomingViewProps {
   onOpenAddTransaction: (prefill?: Partial<Transaction> | null, editId?: string) => void;
 }
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 export const IncomingView: React.FC<IncomingViewProps> = ({
   transactions,
   members,
@@ -25,94 +30,207 @@ export const IncomingView: React.FC<IncomingViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const incoming = useMemo(() =>
     transactions.filter(tx => tx.type === 'incoming'),
     [transactions]
   );
 
-  const months = useMemo(() => {
-    const set = new Set(incoming.map(tx => tx.date.slice(0, 7)));
-    return Array.from(set).sort().reverse();
+  const monthsWithTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    incoming.forEach(tx => {
+      const key = tx.date.slice(0, 7);
+      totals[key] = (totals[key] || 0) + tx.amount;
+    });
+    return Object.entries(totals)
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([key, total]) => ({ key, total }));
   }, [incoming]);
+
+  const getMonthDisplay = (key: string) => {
+    if (key === 'all') return 'All Months';
+    const [year, month] = key.split('-');
+    const monthName = MONTH_NAMES[parseInt(month, 10) - 1];
+    return `${monthName} ${year.slice(2)}`;
+  };
+
+  const filterOptions = [
+    { id: 'all', label: 'All Categories' },
+    { id: 'salary', label: 'Salary / Wage / Benefits' },
+    { id: 'freelance', label: 'Freelance / Side Gig' },
+    { id: 'transfer', label: 'Transfer / Refund' },
+    { id: 'reimbursement', label: 'Household Reimbursement' },
+  ];
 
   const filtered = useMemo(() => {
     let list = selectedMonth === 'all'
       ? incoming
       : incoming.filter(tx => tx.date.startsWith(selectedMonth));
 
+    if (selectedFilter !== 'all') {
+      const filterMap: Record<string, string> = {
+        salary: 'Salary / Wage / Benefits',
+        freelance: 'Freelance / Side Gig',
+        transfer: 'Transfer / Refund',
+        reimbursement: 'Household Reimbursement',
+      };
+      const category = filterMap[selectedFilter];
+      list = list.filter(tx => tx.category === category);
+    }
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       list = list.filter(tx =>
         tx.description.toLowerCase().includes(q) ||
-        tx.category.toLowerCase().includes(q) ||
-        (tx.notes && tx.notes.toLowerCase().includes(q))
+        tx.category.toLowerCase().includes(q)
       );
     }
-    return list.sort((a, b) => b.date.localeCompare(a.date));
-  }, [incoming, selectedMonth, searchQuery]);
 
-  const total = filtered.reduce((sum, tx) => sum + tx.amount, 0);
+    return list.sort((a, b) => b.date.localeCompare(a.date));
+  }, [incoming, selectedMonth, selectedFilter, searchQuery]);
+
+  const totalAll = filtered.reduce((sum, tx) => sum + tx.amount, 0);
+  
+  const totalSalary = useMemo(() =>
+    filtered
+      .filter(tx => tx.category === 'Salary / Wage / Benefits')
+      .reduce((sum, tx) => sum + tx.amount, 0),
+    [filtered]
+  );
+  
+  const totalTransferred = useMemo(() =>
+    filtered
+      .filter(tx => tx.category.toLowerCase().includes('transfer') || tx.category.toLowerCase().includes('refund'))
+      .reduce((sum, tx) => sum + tx.amount, 0),
+    [filtered]
+  );
+  
+  const totalOther = useMemo(() =>
+    totalAll - totalSalary - totalTransferred,
+    [totalAll, totalSalary, totalTransferred]
+  );
+
+  const selectedMonthTotal = selectedMonth === 'all'
+    ? totalAll
+    : monthsWithTotals.find(m => m.key === selectedMonth)?.total || 0;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Incoming Money</h2>
-          <p className="text-sm text-gray-500">Track all money received</p>
+    <div className="incoming-page">
+      <div className="incoming-top-bar">
+        <div className="incoming-title-group">
+          <h2 className="incoming-title">Incoming Money</h2>
+          <p className="incoming-subtitle">Track all money received</p>
         </div>
-        <div className="flex gap-2">
+        <div className="incoming-actions">
           <button
             onClick={onOpenImportCsv}
-            className="inline-flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
+            className="incoming-btn incoming-btn--secondary"
           >
             <Upload size={14} /> Import CSV
           </button>
           <button
             onClick={() => onOpenAddTransaction()}
-            className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700"
+            className="incoming-btn incoming-btn--accent"
           >
             <Plus size={14} /> Add Transaction
           </button>
         </div>
       </div>
 
-      {/* Search & Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      <div className="incoming-stats-grid">
+        <div className="incoming-stat-card incoming-stat-card--primary">
+          <p className="incoming-stat-label">Total Money In</p>
+          <p className="incoming-stat-value">
+            {currencySymbol}{totalAll.toFixed(2)}
+          </p>
+          <p className="incoming-stat-desc">This month</p>
+        </div>
+        <div className="incoming-stat-card">
+          <p className="incoming-stat-label">Salary & Wages</p>
+          <p className="incoming-stat-value">
+            {currencySymbol}{totalSalary.toFixed(2)}
+          </p>
+          <p className="incoming-stat-desc">Earnings & benefits</p>
+        </div>
+        <div className="incoming-stat-card">
+          <p className="incoming-stat-label">Transfers</p>
+          <p className="incoming-stat-value">
+            {currencySymbol}{totalTransferred.toFixed(2)}
+          </p>
+          <p className="incoming-stat-desc">Bank transfers & refunds</p>
+        </div>
+        <div className="incoming-stat-card">
+          <p className="incoming-stat-label">Other Income</p>
+          <p className="incoming-stat-value">
+            {currencySymbol}{totalOther.toFixed(2)}
+          </p>
+          <p className="incoming-stat-desc">Cashback & miscellaneous</p>
+        </div>
+      </div>
+
+      {/* ✅ FILTER SECTION — RESTORED EXACTLY AS ORIGINAL */}
+      <div className="incoming-filters-section">
+        <div className="filter-dropdown relative">
+          <button
+            onClick={() => setShowMonthDropdown(!showMonthDropdown)}
+            className="incoming-btn incoming-btn--secondary"
+          >
+            {selectedMonth === 'all'
+              ? 'All Months'
+              : `${getMonthDisplay(selectedMonth)} — ${currencySymbol}${selectedMonthTotal.toFixed(2)}`
+            }
+            {showMonthDropdown ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          {showMonthDropdown && (
+            <div className="absolute">
+              <button
+                onClick={() => { setSelectedMonth('all'); setShowMonthDropdown(false); }}
+              >
+                <span>All Months</span>
+                <span className="month-amount">{currencySymbol}{totalAll.toFixed(2)}</span>
+              </button>
+              {monthsWithTotals.map(({ key, total }) => (
+                <button
+                  key={key}
+                  onClick={() => { setSelectedMonth(key); setShowMonthDropdown(false); }}
+                >
+                  <span>{getMonthDisplay(key)}</span>
+                  <span className="month-amount">{currencySymbol}{total.toFixed(2)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="search-wrapper">
           <input
             type="text"
             placeholder="Search transactions…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
+            className="incoming-search-bar"
           />
         </div>
-        <div className="relative">
+
+        <div className="filter-dropdown relative">
           <button
-            onClick={() => setShowMonthDropdown(!showMonthDropdown)}
-            className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
+            onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+            className="incoming-btn incoming-btn--secondary"
           >
-            {selectedMonth === 'all' ? 'All Months' : selectedMonth}
-            {showMonthDropdown ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {filterOptions.find(f => f.id === selectedFilter)?.label}
+            {showFilterDropdown ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
-          {showMonthDropdown && (
-            <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-              <button
-                onClick={() => { setSelectedMonth('all'); setShowMonthDropdown(false); }}
-                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-              >
-                All Months
-              </button>
-              {months.map(month => (
+          {showFilterDropdown && (
+            <div className="absolute">
+              {filterOptions.map(option => (
                 <button
-                  key={month}
-                  onClick={() => { setSelectedMonth(month); setShowMonthDropdown(false); }}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                  key={option.id}
+                  onClick={() => { setSelectedFilter(option.id); setShowFilterDropdown(false); }}
                 >
-                  {month}
+                  {option.label}
                 </button>
               ))}
             </div>
@@ -120,29 +238,22 @@ export const IncomingView: React.FC<IncomingViewProps> = ({
         </div>
       </div>
 
-      {/* Total */}
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-        <p className="text-sm text-green-700">Total Incoming</p>
-        <p className="text-2xl font-bold text-green-800">{currencySymbol}{total.toFixed(2)}</p>
-      </div>
-
-      {/* Table */}
-      <div className="overflow-x-auto border border-gray-200 rounded-lg">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+      <div className="incoming-table-container">
+        <table className="incoming-table">
+          <thead>
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Description</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Category</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">From / Member</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Amount</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600 w-24">Actions</th>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Category</th>
+              <th>From / Member</th>
+              <th>Amount</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={6} className="incoming-empty-state">
                   No incoming transactions found. Click "Add Transaction" to get started.
                 </td>
               </tr>
@@ -150,22 +261,22 @@ export const IncomingView: React.FC<IncomingViewProps> = ({
               filtered.map(tx => {
                 const fromMember = members.find(m => m.id === tx.fromMemberId || m.id === (tx as any).memberId);
                 return (
-                  <tr key={tx.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-700">{formatDate(tx.date)}</td>
-                    <td className="px-4 py-3 text-gray-900">{tx.description}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
+                  <tr key={tx.id}>
+                    <td>{formatDate(tx.date)}</td>
+                    <td className="font-medium">{tx.description}</td>
+                    <td>
+                      <span className="category-badge">
                         {tx.category}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">
+                    <td className="member-name">
                       {fromMember ? fromMember.name : '—'}
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-green-700">
+                    <td className="incoming-amount-cell">
                       {currencySymbol}{tx.amount.toFixed(2)}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="hl-action-buttons justify-end">
+                    <td>
+                      <div className="hl-action-buttons">
                         <button
                           onClick={() => onOpenAddTransaction(tx, tx.id)}
                           className="hl-btn-icon"
@@ -174,7 +285,7 @@ export const IncomingView: React.FC<IncomingViewProps> = ({
                           <Edit3 size={15} />
                         </button>
                         <button
-                          onClick={() => onDeleteTransaction(tx.id)}
+                          onClick={() => setDeleteTargetId(tx.id)}
                           className="hl-btn-icon hl-btn-icon--delete"
                           title="Delete"
                         >
@@ -189,6 +300,26 @@ export const IncomingView: React.FC<IncomingViewProps> = ({
           </tbody>
         </table>
       </div>
+
+      {deleteTargetId && (
+        <div className="delete-confirm-modal">
+          <div>
+            <h4>Delete Transaction?</h4>
+            <p>This action cannot be undone.</p>
+            <div className="delete-confirm-buttons">
+              <button onClick={() => setDeleteTargetId(null)}>Cancel</button>
+              <button
+                onClick={() => {
+                  onDeleteTransaction(deleteTargetId);
+                  setDeleteTargetId(null);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

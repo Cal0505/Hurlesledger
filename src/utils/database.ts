@@ -37,7 +37,6 @@ async function syncRows<T extends Identified>(
     const { error } = await client.from(table).upsert(updates.map(toRow));
     throwDatabaseError(`Could not save ${table}`, error);
   }
-
   const removed = deletedIds(before, after);
   if (removed.length > 0) {
     const { error } = await client.from(table).delete().in('id', removed);
@@ -54,7 +53,6 @@ export async function loadHouseholdData(client: SupabaseClient): Promise<AppStat
   if (!access) {
     throw new Error('Your account is not yet authorized for this household. Ask the project administrator to grant access.');
   }
-
   const [membersResult, billsResult, transactionsResult, settingsResult] = await Promise.all([
     client.from('household_members').select('*').order('created_at'),
     client.from('household_bills').select('*').order('created_at'),
@@ -65,8 +63,9 @@ export async function loadHouseholdData(client: SupabaseClient): Promise<AppStat
   throwDatabaseError('Could not load household bills', billsResult.error);
   throwDatabaseError('Could not load household transactions', transactionsResult.error);
   throwDatabaseError('Could not load household settings', settingsResult.error);
-
+  
   const state = getEmptyState();
+  
   state.members = (membersResult.data || []).map((row): Member => ({
     id: row.id,
     name: row.name,
@@ -77,6 +76,7 @@ export async function loadHouseholdData(client: SupabaseClient): Promise<AppStat
     notes: row.notes || undefined,
     createdAt: row.created_at,
   }));
+  
   state.bills = (billsResult.data || []).map((row): HouseholdBill => ({
     id: row.id,
     name: row.name,
@@ -95,6 +95,7 @@ export async function loadHouseholdData(client: SupabaseClient): Promise<AppStat
     linkedOutgoingId: row.linked_outgoing_id || undefined,
     createdAt: row.created_at,
   }));
+  
   state.transactions = (transactionsResult.data || []).map((row): Transaction => ({
     id: row.id,
     date: row.date,
@@ -110,12 +111,12 @@ export async function loadHouseholdData(client: SupabaseClient): Promise<AppStat
     source: row.source,
     createdAt: row.created_at,
   }));
-
+  
   if (settingsResult.data) {
     state.primaryUserId = settingsResult.data.primary_user_id;
     state.currencySymbol = settingsResult.data.currency_symbol;
   }
-
+  
   return state;
 }
 
@@ -164,16 +165,17 @@ export async function getHouseholdAccessStatus(
     .eq('user_id', userId)
     .maybeSingle();
   throwDatabaseError('Could not check your access request', requestError);
-
+  
   if (request?.status === 'pending') return 'pending';
   if (request?.status === 'denied') return 'denied';
-
+  
   const { data: access, error: accessError } = await client
     .from('household_access')
     .select('user_id')
     .eq('user_id', userId)
     .maybeSingle();
   throwDatabaseError('Could not check household access', accessError);
+  
   if (access) {
     const { data: member, error: memberError } = await client
       .from('household_members')
@@ -181,14 +183,16 @@ export async function getHouseholdAccessStatus(
       .eq('auth_user_id', userId)
       .maybeSingle();
     throwDatabaseError('Could not check your household profile', memberError);
+    
     if (member) return 'authorized';
     if (request?.status === 'approved') return 'profile';
     throw new Error('Your account has household access but no approved access request or linked profile. Ask a household administrator to review your access.');
   }
-
+  
   if (request?.status === 'approved') {
     throw new Error('Your request is approved but household access was not granted. Ask a household administrator to review your access.');
   }
+  
   return 'none';
 }
 
@@ -202,7 +206,7 @@ export async function listPendingHouseholdAccessRequests(
     email: string;
     created_at: string;
   }> = [];
-
+  
   for (let offset = 0; ; offset += pageSize) {
     const { data, error } = await client
       .from('household_access_requests')
@@ -211,15 +215,16 @@ export async function listPendingHouseholdAccessRequests(
       .order('created_at')
       .order('user_id')
       .range(offset, offset + pageSize - 1);
+      
     throwDatabaseError('Could not load access requests', error);
-
     const page = data || [];
     rows.push(...page);
     if (page.length < pageSize) break;
   }
-
+  
   const memberIds = [...new Set(rows.flatMap((row) => row.member_id ? [row.member_id] : []))];
   const memberNames = new Map<string, string>();
+  
   if (memberIds.length > 0) {
     const { data, error } = await client
       .from('household_members')
@@ -230,12 +235,16 @@ export async function listPendingHouseholdAccessRequests(
       memberNames.set(member.id, member.name);
     }
   }
-
+  
+  // ✅ FIXED: Return ALL required fields matching HouseholdAccessRequest type
   return rows.map((row) => ({
+    id: row.user_id,               // ✅ Required unique ID
     userId: row.user_id,
     memberId: row.member_id,
     email: row.email,
     createdAt: row.created_at,
+    requestedAt: row.created_at,   // ✅ Map timestamp to requestedAt
+    status: 'pending' as const,    // ✅ All are pending from query filter
     memberName: row.member_id ? memberNames.get(row.member_id) || '' : '',
   }));
 }
@@ -273,6 +282,7 @@ export async function saveHouseholdChanges(
       created_at: member.createdAt,
     })
   );
+
   await syncRows<HouseholdBill>(
     client,
     'household_bills',
@@ -295,6 +305,7 @@ export async function saveHouseholdChanges(
       created_at: bill.createdAt,
     })
   );
+
   await syncRows<Transaction>(
     client,
     'household_transactions',

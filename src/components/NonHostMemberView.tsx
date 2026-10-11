@@ -189,56 +189,65 @@ export const NonHostMemberView: React.FC<NonHostMemberViewProps> = ({
     setTimeout(() => setCopiedNotification(false), 2500);
   };
 
-  // ─── RENDER ───
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-2">
-      {/* Header — YOUR ORIGINAL */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-200">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full text-white text-xl font-bold flex items-center justify-center shrink-0 shadow-xs" style={{ backgroundColor: activeMember.avatarColor }}>
+    <div className="non-host-view member-profile-card">
+      {/* Header — Clean, no tabs, no extra Refresh */}
+      <div className="non-host-header">
+        <div className="non-host-header-profile">
+          <div
+            className="non-host-avatar"
+            style={{ backgroundColor: activeMember.avatarColor }}
+          >
             {activeMember.name.charAt(0)}
           </div>
-          <div>
-            <h3 className="text-xl font-bold text-neutral-900 tracking-tight">{activeMember.name}</h3>
-            <p className="text-xs text-neutral-600 mt-1">{activeMember.email || 'No email specified'} · {activeMember.notes || 'Household Flatmate'}</p>
+          <div className="non-host-profile-info">
+            <h3 className="non-host-name">{activeMember.name}</h3>
+            <p className="non-host-meta">
+              {activeMember.email || 'No email specified'} · {activeMember.notes || 'Household Member'}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 self-start sm:self-center">
-          <button onClick={handleCopyShareText} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-md transition-colors">
+        <div className="non-host-header-actions">
+          <button onClick={handleCopyShareText} className="non-host-btn non-host-btn--copy">
             {copiedNotification ? (
-              <div className="flex items-center gap-1"><Check className="w-3.5 h-3.5 text-emerald-600" /><span className="text-emerald-700">Copied Overview!</span></div>
+              <span className="non-host-feedback">
+                <Check className="non-host-icon-sm" />
+                Copied!
+              </span>
             ) : (
-              <div className="flex items-center gap-1"><Copy className="w-3.5 h-3.5" /><span>Copy Shares</span></div>
+              <span className="non-host-btn-content">
+                <Copy className="non-host-icon-sm" />
+                Copy Shares
+              </span>
             )}
           </button>
-          <button onClick={() => onEditMember(activeMember)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-700 bg-white border border-neutral-300 hover:bg-neutral-50 rounded-md transition-colors">
-            <Edit3 className="w-3.5 h-3.5" />
-            <span>Edit My Profile</span>
+          <button onClick={() => onEditMember(activeMember)} className="non-host-btn non-host-btn--edit">
+            <Edit3 className="non-host-icon-sm" />
+            Edit Profile
           </button>
         </div>
       </div>
 
-      {/* Tumbler + Metrics — Tumbler Added, Your Cards Restored */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* 3D Cylinder Tumbler — ONLY NEW THING ADDED */}
-        <div className="border border-neutral-200 rounded-2xl p-4 flex flex-col items-center justify-between h-[320px] bg-white shadow-sm">
+      {/* Tumbler + Metrics */}
+      <div className="non-host-tumbler-metrics-grid">
+        {/* Month Selector Card */}
+        <div className="non-host-tumbler-card">
           <button
             type="button"
-            disabled={activeIndex === 0}
+            disabled={activeIndex <= 0}
             onClick={() => handleStepTimeline('up')}
-            className="p-2 rounded-lg bg-neutral-100 border border-neutral-200 hover:bg-neutral-200 text-neutral-600 transition-all disabled:opacity-20 disabled:pointer-events-none"
+            className="non-host-tumbler-nav-btn"
           >
-            <ChevronUp className="w-4 h-4" />
+            <ChevronUp className="non-host-tumbler-icon" />
           </button>
-
           <div
             onWheel={handleWheelScroll}
-            className="flex-1 w-full relative my-2 overflow-hidden cursor-ns-resize"
+            className="non-host-tumbler-viewport"
             style={{ perspective: '1200px' }}
           >
-            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-14 bg-emerald-500/10 border-2 border-emerald-500 rounded-xl z-10 pointer-events-none" />
+            <div className="non-host-tumbler-marker" />
             <div
-              className="relative transition-transform duration-500 ease-out"
+              className="non-host-tumbler-rotor"
               style={{
                 transformStyle: 'preserve-3d',
                 transform: `rotateX(${activeIndex * STEP_DEG}deg)`,
@@ -247,17 +256,13 @@ export const NonHostMemberView: React.FC<NonHostMemberViewProps> = ({
             >
               {filterOptions.map((opt, idx) => {
                 const isSelected = idx === activeIndex;
-                const metrics = timelineDataMap[opt.key] || { billed: 0, paid: 0, arrears: 0 };
                 const dist = Math.abs(idx - activeIndex);
+                const metrics = timelineDataMap[opt.key] || { billed: 0, paid: 0, arrears: 0 };
                 return (
                   <div
                     key={opt.key}
                     onClick={() => goToIndex(idx)}
-                    className={`absolute w-full max-w-[240px] mx-auto left-0 right-0 h-12 rounded-xl flex items-center justify-between px-4 border transition-all duration-300 cursor-pointer ${
-                      isSelected
-                        ? 'bg-emerald-600 border-emerald-500 text-white font-bold shadow-md z-10'
-                        : 'bg-neutral-50 border-neutral-200 text-neutral-700 font-semibold'
-                    }`}
+                    className={`non-host-tumbler-item ${isSelected ? 'non-host-tumbler-item--active' : ''}`}
                     style={{
                       top: '50%',
                       marginTop: '-24px',
@@ -267,111 +272,121 @@ export const NonHostMemberView: React.FC<NonHostMemberViewProps> = ({
                       backfaceVisibility: 'hidden'
                     }}
                   >
-                    <span className="text-xs">{opt.monthFull} {opt.yearFull}</span>
-                    <span className={`text-xs font-mono ${isSelected ? 'text-white' : metrics.arrears > 0 ? 'text-rose-600' : 'text-neutral-400'}`}>
-                      {metrics.arrears > 0 ? formatCurrency(metrics.arrears, currencySymbol) : '£0'}
+                    <span className="non-host-tumbler-month">{opt.monthFull} {opt.yearFull}</span>
+                    <span className={`non-host-tumbler-amount ${metrics.arrears > 0 ? 'non-host-tumbler-amount--arrears' : ''}`}>
+                      {metrics.arrears > 0
+                        ? `${currencySymbol}${metrics.arrears.toFixed(2)} owed`
+                        : `${currencySymbol}0.00`}
                     </span>
                   </div>
                 );
               })}
             </div>
           </div>
-
           <button
             type="button"
-            disabled={activeIndex === filterOptions.length - 1}
+            disabled={activeIndex >= filterOptions.length - 1}
             onClick={() => handleStepTimeline('down')}
-            className="p-2 rounded-lg bg-neutral-100 border border-neutral-200 hover:bg-neutral-200 text-neutral-600 transition-all disabled:opacity-20 disabled:pointer-events-none"
+            className="non-host-tumbler-nav-btn"
           >
-            <ChevronDown className="w-4 h-4" />
+            <ChevronDown className="non-host-tumbler-icon" />
           </button>
         </div>
 
-        {/* YOUR ORIGINAL 4 METRIC CARDS — UNCHANGED */}
-        <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="p-4 rounded-lg bg-white border border-neutral-200 shadow-sm">
-            <span className="text-xs font-medium text-neutral-500 uppercase tracking-wider block">Monthly Share ({currentMonthName})</span>
-            <div className="text-2xl font-bold text-neutral-900 mt-2 font-mono tabular-nums">
-              {formatCurrency(timelineDataMap[currentMonthKey]?.billed || 0, currencySymbol)}
+        {/* Metric Cards */}
+        <div className="non-host-metrics-grid">
+          <div className="non-host-metric-card">
+            <span className="non-host-metric-label">Monthly Share</span>
+            <div className="non-host-metric-value">
+              {currencySymbol}{(timelineDataMap[currentMonthKey]?.billed || 0).toFixed(2)}
             </div>
-            <span className="text-xs text-neutral-400 mt-1 block">{participatingBills.length} active bills assigned</span>
+            <span className="non-host-metric-note">
+              {participatingBills.length} active bills assigned
+            </span>
           </div>
-          <div className="p-4 rounded-lg bg-white border border-neutral-200 shadow-sm">
-            <span className="text-xs font-medium text-neutral-500 uppercase tracking-wider block">Payments Settled ({currentMonthName})</span>
-            <div className="text-2xl font-bold text-emerald-700 mt-2 font-mono tabular-nums">
-              {formatCurrency(timelineDataMap[currentMonthKey]?.paid || 0, currencySymbol)}
+          <div className="non-host-metric-card">
+            <span className="non-host-metric-label">Payments Received</span>
+            <div className="non-host-metric-value non-host-metric-value--positive">
+              {currencySymbol}{(timelineDataMap[currentMonthKey]?.paid || 0).toFixed(2)}
             </div>
-            <span className="text-xs text-neutral-400 mt-1 block">{coveragePercent}% covered this cycle</span>
+            <span className="non-host-metric-note">
+              {coveragePercent}% covered this cycle
+            </span>
           </div>
-          <div className="p-4 rounded-lg bg-white border border-neutral-200 shadow-sm flex flex-col justify-between">
-            <div>
-              <span className="text-xs font-medium text-neutral-500 uppercase tracking-wider block">Total Balance Due</span>
-              <div className={`text-2xl font-bold mt-2 font-mono tabular-nums ${allTimeOutstandingDue === 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
-                {allTimeOutstandingDue === 0 ? 'Settled' : formatCurrency(allTimeOutstandingDue, currencySymbol)}
-              </div>
+          <div className="non-host-metric-card">
+            <span className="non-host-metric-label">Total Balance Due</span>
+            <div className={`non-host-metric-value ${allTimeOutstandingDue === 0 ? 'non-host-metric-value--settled' : 'non-host-metric-value--warning'}`}>
+              {currencySymbol}{allTimeOutstandingDue.toFixed(2)}
             </div>
             {allTimeOutstandingDue > 0 && (
-              <div className="text-[10px] font-bold text-rose-700 mt-2 pt-1 border-t border-neutral-100 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3 shrink-0" />
-                <span>Arrears exist in past statements</span>
+              <div className="non-host-arrears-note">
+                <AlertCircle className="non-host-icon-xs" />
+                {unpaidMonthNodes.length} month{unpaidMonthNodes.length !== 1 ? 's' : ''} in arrears
               </div>
             )}
           </div>
-          <div className="p-4 rounded-lg bg-neutral-50 border border-neutral-200 shadow-sm flex flex-col justify-between">
-            <div>
-              <span className="text-xs font-medium text-neutral-500 uppercase tracking-wider block">Ledger Status</span>
-              <p className="text-xs text-neutral-600 mt-2 leading-relaxed">
-                Your profile is verified and linked to this household ledger.
-              </p>
-            </div>
-            <div className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider pt-2 border-t border-neutral-100">
-              HearthLedger Verified
+          <div className="non-host-metric-card non-host-metric-card--status">
+            <span className="non-host-metric-label">Account Status</span>
+            <p className="non-host-status-text">
+              {activeMember.isAccountHolder ? 'Primary Account Holder' : 'Verified Household Member'}
+            </p>
+            <div className="non-host-status-badge">
+              {activeMember.isAccountHolder ? 'Host' : 'Member'}
             </div>
           </div>
         </div>
       </div>
 
-      {/* YOUR ORIGINAL Arrears Section */}
+      {/* Unpaid Arrears Section */}
       {unpaidMonthNodes.length > 0 && (
-        <section className="bg-white border border-neutral-200 rounded-xl p-4 shadow-sm">
-          <span className="text-[10px] font-bold text-neutral-400 block uppercase tracking-wider mb-2">Unpaid Arrears Found In:</span>
-          <div className="flex flex-wrap gap-1.5">
+        <section className="non-host-arrears-section">
+          <span className="non-host-arrears-heading">Unpaid Arrears — Click to jump</span>
+          <div className="non-host-arrears-tags">
             {unpaidMonthNodes.map((node) => (
               <button
                 key={node.key}
                 type="button"
-                onClick={() => setSelectedMonthDate(new Date(`${node.key}-02T00:00:00`))}
-                className="inline-flex items-center gap-1 rounded bg-rose-50 border border-rose-200 px-2 py-0.5 text-[10px] font-semibold text-rose-700 hover:bg-rose-100 transition-colors"
+                onClick={() => {
+                  const idx = filterOptions.findIndex(o => o.key === node.key);
+                  if (idx >= 0) goToIndex(idx);
+                }}
+                className="non-host-arrears-tag"
               >
-                <span>{node.label}</span>
-                <span className="font-mono text-neutral-400 font-normal">({formatCurrency(node.amount, currencySymbol)})</span>
+                {node.label}
+                <span className="non-host-arrears-amount">
+                  {currencySymbol}{node.amount.toFixed(2)}
+                </span>
               </button>
             ))}
           </div>
         </section>
       )}
 
-      {/* YOUR ORIGINAL Bills Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
-        <div className="space-y-3">
-          <h4 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
-            <ReceiptText className="w-4 h-4 text-blue-600" />
-            <span>Active Bills Assigned ({participatingBills.length})</span>
+      {/* Bills Tables */}
+      <div className="non-host-bills-grid">
+        <div className="non-host-bills-section">
+          <h4 className="non-host-section-heading">
+            <ReceiptText className="non-host-section-icon non-host-section-icon--primary" />
+            Active Bills — Assigned ({participatingBills.length})
           </h4>
-          <div className="divide-y divide-neutral-200 border border-neutral-200 rounded-lg overflow-hidden bg-white">
+          <div className="non-host-bills-list">
             {paginatedActiveBills.length === 0 ? (
-              <div className="p-4 text-center text-xs text-neutral-500">No shared bills assigned to you this period.</div>
+              <div className="non-host-empty-text">
+                No active bills assigned to this member
+              </div>
             ) : (
               paginatedActiveBills.map((bill) => {
                 const share = getMemberShareForBill(activeMember.id, bill, currentMonthKey);
                 return (
-                  <div key={bill.id} className="p-3.5 flex items-center justify-between hover:bg-neutral-50 transition-colors">
-                    <div>
-                      <div className="font-semibold text-xs text-neutral-900">{bill.name}</div>
-                      <div className="text-[11px] text-neutral-500 mt-0.5">{bill.category} · Bill total: {formatCurrency(bill.amount, currencySymbol)}</div>
+                  <div key={bill.id} className="non-host-bill-row">
+                    <div className="non-host-bill-info">
+                      <div className="non-host-bill-name">{bill.name}</div>
+                      <div className="non-host-bill-meta">
+                        {bill.category} · {bill.frequency}
+                      </div>
                     </div>
-                    <div className="text-right font-mono font-bold text-xs text-neutral-900 tabular-nums">
-                      {formatCurrency(share, currencySymbol)}
+                    <div className="non-host-bill-share">
+                      {currencySymbol}{share.toFixed(2)}
                     </div>
                   </div>
                 );
@@ -379,77 +394,107 @@ export const NonHostMemberView: React.FC<NonHostMemberViewProps> = ({
             )}
           </div>
           {totalActivePages > 1 && (
-            <div className="flex items-center justify-between px-1">
-              <button type="button" disabled={activePage === 1} onClick={() => setActivePage(p => p - 1)}
-                className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold border border-neutral-300 text-neutral-700 rounded hover:bg-neutral-50 disabled:opacity-30">
-                <ChevronLeft className="w-3.5 h-3.5" /><span>Prev</span>
+            <div className="non-host-pagination">
+              <button
+                type="button"
+                disabled={activePage === 1}
+                onClick={() => setActivePage(p => p - 1)}
+                className="non-host-pagination-btn"
+              >
+                <ChevronLeft className="non-host-icon-xs" /> Prev
               </button>
-              <span className="text-[10px] font-bold opacity-50">Page {activePage} of {totalActivePages}</span>
-              <button type="button" disabled={activePage === totalActivePages} onClick={() => setActivePage(p => p + 1)}
-                className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold border border-neutral-300 text-neutral-700 rounded hover:bg-neutral-50 disabled:opacity-30">
-                <span>Next</span><ChevronRight className="w-3.5 h-3.5" />
+              <span className="non-host-pagination-text">
+                Page {activePage} of {totalActivePages}
+              </span>
+              <button
+                type="button"
+                disabled={activePage === totalActivePages}
+                onClick={() => setActivePage(p => p + 1)}
+                className="non-host-pagination-btn"
+              >
+                Next <ChevronRight className="non-host-icon-xs" />
               </button>
             </div>
           )}
         </div>
 
-        <div className="space-y-3">
-          <h4 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
-            <Ban className="w-4 h-4 text-amber-600" />
-            <span>Excluded From Bills ({excludedBills.length})</span>
+        <div className="non-host-bills-section">
+          <h4 className="non-host-section-heading">
+            <Ban className="non-host-section-icon non-host-section-icon--warning" />
+            Excluded / Not Participating ({excludedBills.length})
           </h4>
-          <div className="divide-y divide-neutral-200 border border-neutral-200 rounded-lg overflow-hidden bg-white">
+          <div className="non-host-bills-list">
             {paginatedExcludedBills.length === 0 ? (
-              <div className="p-4 text-center text-xs text-neutral-500">You participate in all shared household bills this month.</div>
+              <div className="non-host-empty-text">
+                This member participates in all active bills
+              </div>
             ) : (
               paginatedExcludedBills.map((bill) => (
-                <div key={bill.id} className="p-3.5 flex items-center justify-between bg-neutral-50/40 hover:bg-neutral-50 transition-colors">
-                  <div>
-                    <div className="font-semibold text-xs text-neutral-700">{bill.name}</div>
-                    <div className="text-[11px] text-neutral-500 mt-0.5">{bill.category} · Total: {formatCurrency(bill.amount, currencySymbol)}</div>
+                <div key={bill.id} className="non-host-bill-row non-host-bill-row--excluded">
+                  <div className="non-host-bill-info">
+                    <div className="non-host-bill-name non-host-bill-name--muted">
+                      {bill.name}
+                    </div>
+                    <div className="non-host-bill-meta">
+                      {bill.category} · {bill.frequency}
+                    </div>
                   </div>
-                  <div className="font-mono text-xs text-neutral-400">£0.00</div>
+                  <div className="non-host-bill-share non-host-bill-share--zero">
+                    {currencySymbol}0.00
+                  </div>
                 </div>
               ))
             )}
           </div>
           {totalExcludedPages > 1 && (
-            <div className="flex items-center justify-between px-1">
-              <button type="button" disabled={excludedPage === 1} onClick={() => setExcludedPage(p => p - 1)}
-                className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold border border-neutral-300 text-neutral-700 rounded hover:bg-neutral-50 disabled:opacity-30">
-                <ChevronLeft className="w-3.5 h-3.5" /><span>Prev</span>
+            <div className="non-host-pagination">
+              <button
+                type="button"
+                disabled={excludedPage === 1}
+                onClick={() => setExcludedPage(p => p - 1)}
+                className="non-host-pagination-btn"
+              >
+                <ChevronLeft className="non-host-icon-xs" /> Prev
               </button>
-              <span className="text-[10px] font-bold opacity-50">Page {excludedPage} of {totalExcludedPages}</span>
-              <button type="button" disabled={excludedPage === totalExcludedPages} onClick={() => setExcludedPage(p => p + 1)}
-                className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold border border-neutral-300 text-neutral-700 rounded hover:bg-neutral-50 disabled:opacity-30">
-                <span>Next</span><ChevronRight className="w-3.5 h-3.5" />
+              <span className="non-host-pagination-text">
+                Page {excludedPage} of {totalExcludedPages}
+              </span>
+              <button
+                type="button"
+                disabled={excludedPage === totalExcludedPages}
+                onClick={() => setExcludedPage(p => p + 1)}
+                className="non-host-pagination-btn"
+              >
+                Next <ChevronRight className="non-host-icon-xs" />
               </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* YOUR ORIGINAL Payment History */}
-      <div className="pt-4 border-t border-neutral-200 space-y-3">
-        <h4 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
-          <ArrowDownLeft className="w-4 h-4 text-emerald-600" />
-          <span>My Personal Payment History</span>
+      {/* Payment History */}
+      <div className="non-host-history-section">
+        <h4 className="non-host-section-heading">
+          <ArrowDownLeft className="non-host-section-icon non-host-section-icon--success" />
+          Payments Received — {currentMonthName}
         </h4>
-        <div className="border border-neutral-200 rounded-lg overflow-hidden bg-white">
+        <div className="non-host-history-list">
           {memberTransactions.length === 0 ? (
-            <div className="p-6 text-center text-xs text-neutral-500">No payment records logged under your profile index yet for this period.</div>
+            <div className="non-host-empty-text">
+              No payment records for this period
+            </div>
           ) : (
-            <div className="divide-y divide-neutral-100">
+            <div className="non-host-history-entries">
               {memberTransactions.map((tx) => (
-                <div key={tx.id} className="p-3.5 flex items-center justify-between hover:bg-neutral-50 transition-colors">
-                  <div>
-                    <div className="font-medium text-xs text-neutral-900">{tx.description}</div>
-                    <div className="text-[11px] text-neutral-500 mt-0.5">
-                      {formatDate(tx.date)} · {tx.paymentMethod === 'cash' ? 'Cash Settlement' : 'Bank Transfer'}
+                <div key={tx.id} className="non-host-history-row">
+                  <div className="non-host-history-info">
+                    <div className="non-host-history-desc">{tx.description || 'Payment received'}</div>
+                    <div className="non-host-history-meta">
+                      {formatDate(tx.date)} · {tx.paymentMethod || 'Not specified'}
                     </div>
                   </div>
-                  <div className="font-mono font-semibold text-xs text-emerald-700 tabular-nums">
-                    +{formatCurrency(tx.amount, currencySymbol)}
+                  <div className="non-host-history-amount">
+                    +{currencySymbol}{tx.amount.toFixed(2)}
                   </div>
                 </div>
               ))}

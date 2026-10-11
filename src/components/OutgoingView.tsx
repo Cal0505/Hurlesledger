@@ -1,22 +1,27 @@
 import React, { useState, useMemo } from 'react';
-import { Upload, Plus, Search, ChevronDown, ChevronUp, Trash2, Edit3 } from 'lucide-react';
+import { Upload, Plus, ChevronDown, ChevronUp, Trash2, Edit3 } from 'lucide-react';
 import { HouseholdBill, Member, Transaction } from '../types/budget';
 import { formatCurrency, formatDate } from '../utils/formatters';
 
 interface OutgoingViewProps {
   transactions: Transaction[];
-  bills: HouseholdBill[];
   members: Member[];
+  bills: HouseholdBill[];
   currencySymbol: string;
   onOpenImportCsv: () => void;
   onDeleteTransaction: (id: string) => void;
   onOpenAddTransaction: (prefill?: Partial<Transaction> | null, editId?: string) => void;
 }
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 export const OutgoingView: React.FC<OutgoingViewProps> = ({
   transactions,
-  bills,
   members,
+  bills,
   currencySymbol,
   onOpenImportCsv,
   onDeleteTransaction,
@@ -25,94 +30,208 @@ export const OutgoingView: React.FC<OutgoingViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const outgoing = useMemo(() =>
     transactions.filter(tx => tx.type === 'outgoing'),
     [transactions]
   );
 
-  const months = useMemo(() => {
-    const set = new Set(outgoing.map(tx => tx.date.slice(0, 7)));
-    return Array.from(set).sort().reverse();
+  const monthsWithTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    outgoing.forEach(tx => {
+      const key = tx.date.slice(0, 7);
+      totals[key] = (totals[key] || 0) + tx.amount;
+    });
+    return Object.entries(totals)
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([key, total]) => ({ key, total }));
   }, [outgoing]);
+
+  const getMonthDisplay = (key: string) => {
+    if (key === 'all') return 'All Months';
+    const [year, month] = key.split('-');
+    const monthName = MONTH_NAMES[parseInt(month, 10) - 1];
+    return `${monthName} ${year.slice(2)}`;
+  };
+
+  const filterOptions = [
+    { id: 'all', label: 'All Categories' },
+    { id: 'bills', label: 'Bills & Payments' },
+    { id: 'groceries', label: 'Groceries' },
+    { id: 'household', label: 'Household Items' },
+    { id: 'personal', label: 'Personal / Living' },
+    { id: 'other', label: 'Other Expense' },
+  ];
 
   const filtered = useMemo(() => {
     let list = selectedMonth === 'all'
       ? outgoing
       : outgoing.filter(tx => tx.date.startsWith(selectedMonth));
 
+    if (selectedFilter !== 'all') {
+      const filterMap: Record<string, string> = {
+        bills: 'Bills & Payments',
+        groceries: 'Groceries',
+        household: 'Household Items',
+        personal: 'Personal / Living',
+        other: 'Other Expense',
+      };
+      const category = filterMap[selectedFilter];
+      list = list.filter(tx => tx.category === category);
+    }
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       list = list.filter(tx =>
         tx.description.toLowerCase().includes(q) ||
-        tx.category.toLowerCase().includes(q) ||
-        (tx.notes && tx.notes.toLowerCase().includes(q))
+        tx.category.toLowerCase().includes(q)
       );
     }
-    return list.sort((a, b) => b.date.localeCompare(a.date));
-  }, [outgoing, selectedMonth, searchQuery]);
 
-  const total = filtered.reduce((sum, tx) => sum + tx.amount, 0);
+    return list.sort((a, b) => b.date.localeCompare(a.date));
+  }, [outgoing, selectedMonth, selectedFilter, searchQuery]);
+
+  const totalAll = filtered.reduce((sum, tx) => sum + tx.amount, 0);
+  
+  const totalBills = useMemo(() =>
+    filtered
+      .filter(tx => tx.category === 'Bills & Payments')
+      .reduce((sum, tx) => sum + tx.amount, 0),
+    [filtered]
+  );
+  
+  const totalGroceries = useMemo(() =>
+    filtered
+      .filter(tx => tx.category === 'Groceries')
+      .reduce((sum, tx) => sum + tx.amount, 0),
+    [filtered]
+  );
+  
+  const totalOther = useMemo(() =>
+    totalAll - totalBills - totalGroceries,
+    [totalAll, totalBills, totalGroceries]
+  );
+
+  const selectedMonthTotal = selectedMonth === 'all'
+    ? totalAll
+    : monthsWithTotals.find(m => m.key === selectedMonth)?.total || 0;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Outgoing Money</h2>
-          <p className="text-sm text-gray-500">Track all money spent</p>
+    <div className="outgoing-page">
+      <div className="outgoing-top-bar">
+        <div className="outgoing-title-group">
+          <h2 className="outgoing-title">Outgoing Money</h2>
+          <p className="outgoing-subtitle">Track all money spent</p>
         </div>
-        <div className="flex gap-2">
+        <div className="outgoing-actions">
           <button
             onClick={onOpenImportCsv}
-            className="inline-flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
+            className="outgoing-btn outgoing-btn--secondary"
           >
             <Upload size={14} /> Import CSV
           </button>
           <button
             onClick={() => onOpenAddTransaction()}
-            className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="outgoing-btn outgoing-btn--accent"
           >
             <Plus size={14} /> Add Transaction
           </button>
         </div>
       </div>
 
-      {/* Search & Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      <div className="outgoing-stats-grid">
+        <div className="outgoing-stat-card outgoing-stat-card--primary">
+          <p className="outgoing-stat-label">Total Spent</p>
+          <p className="outgoing-stat-value">
+            {currencySymbol}{totalAll.toFixed(2)}
+          </p>
+          <p className="outgoing-stat-desc">This month</p>
+        </div>
+        <div className="outgoing-stat-card">
+          <p className="outgoing-stat-label">Bills & Payments</p>
+          <p className="outgoing-stat-value">
+            {currencySymbol}{totalBills.toFixed(2)}
+          </p>
+          <p className="outgoing-stat-desc">Fixed costs</p>
+        </div>
+        <div className="outgoing-stat-card">
+          <p className="outgoing-stat-label">Groceries</p>
+          <p className="outgoing-stat-value">
+            {currencySymbol}{totalGroceries.toFixed(2)}
+          </p>
+          <p className="outgoing-stat-desc">Food & essentials</p>
+        </div>
+        <div className="outgoing-stat-card">
+          <p className="outgoing-stat-label">Other Spending</p>
+          <p className="outgoing-stat-value">
+            {currencySymbol}{totalOther.toFixed(2)}
+          </p>
+          <p className="outgoing-stat-desc">Everything else</p>
+        </div>
+      </div>
+
+      <div className="outgoing-filters-section">
+        <div className="filter-dropdown relative">
+          <button
+            onClick={() => setShowMonthDropdown(!showMonthDropdown)}
+            className="outgoing-btn outgoing-btn--secondary"
+          >
+            {selectedMonth === 'all'
+              ? 'All Months'
+              : `${getMonthDisplay(selectedMonth)} — ${currencySymbol}${selectedMonthTotal.toFixed(2)}`
+            }
+            {showMonthDropdown ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          {showMonthDropdown && (
+            <div className="absolute">
+              <button
+                onClick={() => { setSelectedMonth('all'); setShowMonthDropdown(false); }}
+              >
+                <span>All Months</span>
+                <span className="month-amount">{currencySymbol}{totalAll.toFixed(2)}</span>
+              </button>
+              {monthsWithTotals.map(({ key, total }) => (
+                <button
+                  key={key}
+                  onClick={() => { setSelectedMonth(key); setShowMonthDropdown(false); }}
+                >
+                  <span>{getMonthDisplay(key)}</span>
+                  <span className="month-amount">{currencySymbol}{total.toFixed(2)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="search-wrapper">
           <input
             type="text"
             placeholder="Search transactions…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm"
+            className="outgoing-search-bar"
           />
         </div>
-        <div className="relative">
+
+        <div className="filter-dropdown relative">
           <button
-            onClick={() => setShowMonthDropdown(!showMonthDropdown)}
-            className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
+            onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+            className="outgoing-btn outgoing-btn--secondary"
           >
-            {selectedMonth === 'all' ? 'All Months' : selectedMonth}
-            {showMonthDropdown ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {filterOptions.find(f => f.id === selectedFilter)?.label}
+            {showFilterDropdown ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
-          {showMonthDropdown && (
-            <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-              <button
-                onClick={() => { setSelectedMonth('all'); setShowMonthDropdown(false); }}
-                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-              >
-                All Months
-              </button>
-              {months.map(month => (
+          {showFilterDropdown && (
+            <div className="absolute">
+              {filterOptions.map(option => (
                 <button
-                  key={month}
-                  onClick={() => { setSelectedMonth(month); setShowMonthDropdown(false); }}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                  key={option.id}
+                  onClick={() => { setSelectedFilter(option.id); setShowFilterDropdown(false); }}
                 >
-                  {month}
+                  {option.label}
                 </button>
               ))}
             </div>
@@ -120,52 +239,45 @@ export const OutgoingView: React.FC<OutgoingViewProps> = ({
         </div>
       </div>
 
-      {/* Total */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-700">Total Outgoing</p>
-        <p className="text-2xl font-bold text-blue-800">{currencySymbol}{total.toFixed(2)}</p>
-      </div>
-
-      {/* Table */}
-      <div className="overflow-x-auto border border-gray-200 rounded-lg">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+      <div className="outgoing-table-container">
+        <table className="outgoing-table">
+          <thead>
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Description</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Category</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Paid To</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Amount</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600 w-24">Actions</th>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Category</th>
+              <th>Paid By</th>
+              <th>Amount</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={6} className="outgoing-empty-state">
                   No outgoing transactions found. Click "Add Transaction" to get started.
                 </td>
               </tr>
             ) : (
               filtered.map(tx => {
-                const linkedBill = bills.find(b => b.id === tx.linkedBillId);
+                const paidByMember = members.find(m => m.id === tx.fromMemberId || m.id === (tx as any).memberId);
                 return (
-                  <tr key={tx.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-700">{formatDate(tx.date)}</td>
-                    <td className="px-4 py-3 text-gray-900">{tx.description}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                  <tr key={tx.id}>
+                    <td>{formatDate(tx.date)}</td>
+                    <td className="font-medium">{tx.description}</td>
+                    <td>
+                      <span className="category-badge">
                         {tx.category}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {linkedBill ? linkedBill.name : '—'}
+                    <td className="member-name">
+                      {paidByMember ? paidByMember.name : '—'}
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-blue-700">
+                    <td className="outgoing-amount-cell">
                       {currencySymbol}{tx.amount.toFixed(2)}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="hl-action-buttons justify-end">
+                    <td>
+                      <div className="hl-action-buttons">
                         <button
                           onClick={() => onOpenAddTransaction(tx, tx.id)}
                           className="hl-btn-icon"
@@ -174,7 +286,7 @@ export const OutgoingView: React.FC<OutgoingViewProps> = ({
                           <Edit3 size={15} />
                         </button>
                         <button
-                          onClick={() => onDeleteTransaction(tx.id)}
+                          onClick={() => setDeleteTargetId(tx.id)}
                           className="hl-btn-icon hl-btn-icon--delete"
                           title="Delete"
                         >
@@ -189,6 +301,26 @@ export const OutgoingView: React.FC<OutgoingViewProps> = ({
           </tbody>
         </table>
       </div>
+
+      {deleteTargetId && (
+        <div className="delete-confirm-modal">
+          <div>
+            <h4>Delete Transaction?</h4>
+            <p>This action cannot be undone.</p>
+            <div className="delete-confirm-buttons">
+              <button onClick={() => setDeleteTargetId(null)}>Cancel</button>
+              <button
+                onClick={() => {
+                  onDeleteTransaction(deleteTargetId);
+                  setDeleteTargetId(null);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

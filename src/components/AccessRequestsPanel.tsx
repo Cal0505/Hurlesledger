@@ -25,6 +25,7 @@ export const AccessRequestsPanel: React.FC<AccessRequestsPanelProps> = ({
   useEffect(() => {
     let isMounted = true;
     let isLoadingRequests = false;
+
     const refreshRequests = async () => {
       if (isLoadingRequests) return;
       isLoadingRequests = true;
@@ -78,24 +79,23 @@ export const AccessRequestsPanel: React.FC<AccessRequestsPanelProps> = ({
         type="button"
         onClick={() => void refresh()}
         disabled={isRefreshing}
-        className="mb-5 inline-flex items-center gap-2 rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+        className="access-refresh-btn"
       >
-        <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+        <RefreshCw className={isRefreshing ? 'access-spin' : ''} />
         {isRefreshing ? 'Checking access requests…' : 'Check access requests'}
       </button>
     );
   }
 
   return (
-    <section className="mb-6 rounded-xl border border-neutral-200 bg-white p-4 sm:p-5">
-      <div className="flex items-center gap-2">
-        <Clock3 className="h-4 w-4 text-neutral-500" />
-        <h2 className="text-sm font-semibold text-neutral-900">Access requests</h2>
-        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-700">
-          {requests.length}
-        </span>
+    <section className="access-panel">
+      <div className="access-header-row">
+        <Clock3 />
+        <h2 className="access-heading">Access requests</h2>
+        <span className="access-count-badge">{requests.length}</span>
       </div>
-      <p className="mt-1 text-xs leading-5 text-neutral-600">
+
+      <p className="access-subtext">
         Approve access first. New users will create their household profile after approval.
       </p>
 
@@ -103,49 +103,46 @@ export const AccessRequestsPanel: React.FC<AccessRequestsPanelProps> = ({
         type="button"
         onClick={() => void refresh()}
         disabled={isRefreshing || processingUserId !== ''}
-        className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-700 hover:text-neutral-900 disabled:opacity-50"
+        className="access-refresh-link"
       >
-        <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+        <RefreshCw />
         Refresh requests
       </button>
 
-      <div className="mt-3 space-y-2">
+      <div className="access-requests-list">
         {requests.map((request) => (
-          <div
-            key={request.userId}
-            className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-neutral-900">
-                {request.memberName || 'Profile will be created after approval'}
+          <div key={request.id} className="access-request-card">
+            <div>
+              <p className="access-requester-name">
+                {request.email}
               </p>
-              <p className="truncate text-xs text-neutral-600">{request.email}</p>
-              <p className="mt-0.5 text-[11px] text-neutral-500">
-                Requested {new Date(request.createdAt).toLocaleDateString('en-GB')}
+              <p className="access-requester-email">
+                User ID: {request.userId}
+              </p>
+              <p className="access-requester-date">
+                Requested {new Date(request.requestedAt).toLocaleDateString('en-GB')}
               </p>
             </div>
-            <div className="flex shrink-0 gap-2">
+
+            <div className="access-action-buttons">
               <button
                 type="button"
                 onClick={() => void resolve(request.userId, false)}
                 disabled={processingUserId !== ''}
-                className="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+                className="access-deny-btn"
               >
-                <X className="h-3.5 w-3.5" />
+                <X size={14} />
                 Deny
               </button>
+
               <button
                 type="button"
                 onClick={() => void resolve(request.userId, true)}
                 disabled={processingUserId !== ''}
-                className="inline-flex items-center gap-1.5 rounded-md bg-[#31563c] px-3 py-2 text-xs font-semibold text-white hover:bg-[#274831] disabled:opacity-50"
+                className="access-approve-btn"
               >
-                <Check className="h-3.5 w-3.5" />
-                {processingUserId === request.userId
-                  ? 'Saving…'
-                  : request.memberName
-                    ? 'Approve & link'
-                    : 'Approve access'}
+                <Check size={14} />
+                {processingUserId === request.userId ? 'Saving…' : 'Approve access'}
               </button>
             </div>
           </div>
@@ -153,7 +150,7 @@ export const AccessRequestsPanel: React.FC<AccessRequestsPanelProps> = ({
       </div>
 
       {errorMessage && (
-        <p role="alert" className="mt-3 text-xs font-medium text-rose-700">{errorMessage}</p>
+        <p role="alert" className="access-error-text">{errorMessage}</p>
       )}
     </section>
   );
