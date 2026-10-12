@@ -6,7 +6,7 @@ import { defineConfig } from 'vite';
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
-    base: './', // ✅ Works on BOTH GitHub Pages AND Android
+    base: './',
     resolve: {
       alias: {
         '@': path.resolve(import.meta.dirname, '.'),

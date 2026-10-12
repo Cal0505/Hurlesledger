@@ -8,7 +8,8 @@ import {
   Scale, 
   Plus, 
   Check,
-  X
+  X,
+  Smartphone
 } from 'lucide-react';
 import { ActiveTab, Member } from '../types/budget';
 import { formatCurrency } from '../utils/formatters';
@@ -182,6 +183,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
           )}
+
+          {/* ✅ DOWNLOAD APP — Bottom of sidebar, above footer */}
+          <div style={{ marginTop: 'auto', padding: '1rem 0' }}>
+            <a
+              href="/HurlesLedger.apk"
+              download="HurlesLedger.apk"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                width: '100%',
+                padding: '0.75rem 1rem',
+                backgroundColor: 'var(--accent)',
+                color: '#ffffff',
+                borderRadius: '0.5rem',
+                textDecoration: 'none',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                transition: 'opacity 0.15s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+              onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+            >
+              <Smartphone size={16} />
+              Download Android App
+            </a>
+          </div>
         </div>
 
         {/* Bottom Household Info Bar */}
