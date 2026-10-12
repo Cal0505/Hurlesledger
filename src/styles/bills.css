@@ -424,12 +424,13 @@
   inset: 0;
   background-color: rgba(0, 0, 0, 0.6);
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* Changed from center to top so it scrolls properly */
   justify-content: center;
   z-index: 9999;
   padding: 1rem;
   overflow-y: auto;
 }
+
 .bill-modal-container {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -438,9 +439,10 @@
   max-width: 32rem;
   width: 100%;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow-y: auto; /* Keeps internal scroll working */
   color: var(--text-primary);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  margin: 1rem 0; /* Adds space top/bottom so it doesn't touch screen edges */
 }
 .bill-modal-header {
   display: flex;
@@ -672,4 +674,176 @@
 /* ✅ Avatar colors from data attribute */
 .bill-member-chip__avatar {
   background-color: attr(data-member-color color);
+}
+
+/* ==============================================
+   TRANSACTION MODAL — For TransactionModal.tsx
+============================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.modal-content {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  max-width: 28rem;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  color: var(--text-primary);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  margin: 1rem 0;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.modal-header h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  transition: color 0.15s ease;
+}
+
+.modal-close-btn:hover {
+  color: var(--text-primary);
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background-color: rgba(239, 68, 68, 0.1);
+  border-radius: 0.375rem;
+  color: #ef4444;
+  font-size: 0.875rem;
+}
+
+.type-toggle-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.type-toggle-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem;
+  font-size: 0.875rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.type-toggle-btn.active {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.type-toggle-btn:hover:not(.active) {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.form-row label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.form-input,
+.form-select {
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  color: var(--text-primary);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.modal-btn {
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  border-radius: 0.375rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.modal-btn--secondary {
+  background-color: var(--ui-100);
+  color: var(--text-primary);
+}
+
+.modal-btn--secondary:hover {
+  background-color: var(--ui-200, #e5e7eb);
+}
+
+.modal-btn--primary {
+  background-color: var(--accent);
+  color: #ffffff;
+}
+
+.modal-btn--primary:hover {
+  opacity: 0.9;
 }

@@ -59,9 +59,24 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         setAmount(prefill.amount ? String(prefill.amount) : '');
         setDescription(prefill.description || '');
         setCategory(prefill.category || '');
-        setMemberId(prefill.memberId ?? undefined);
-        setFromMemberId(prefill.fromMemberId ?? undefined);
-        setLinkedBillId(prefill.linkedBillId ?? undefined);
+        
+        // ✅ Validate: only set if member actually exists in the list
+        const validMemberId = prefill.memberId && members.some(m => m.id === prefill.memberId)
+          ? prefill.memberId
+          : undefined;
+        setMemberId(validMemberId);
+        
+        // ✅ Same check for fromMemberId
+        const validFromId = prefill.fromMemberId && members.some(m => m.id === prefill.fromMemberId)
+          ? prefill.fromMemberId
+          : undefined;
+        setFromMemberId(validFromId);
+        
+        // ✅ Same check for linkedBillId
+        const validBillId = prefill.linkedBillId && bills.some(b => b.id === prefill.linkedBillId)
+          ? prefill.linkedBillId
+          : undefined;
+        setLinkedBillId(validBillId);
       } else {
         setType('incoming');
         setDate(new Date().toISOString().slice(0, 10));
@@ -73,12 +88,11 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         setLinkedBillId(undefined);
       }
     }
-  }, [isOpen, prefill]);
+  }, [isOpen, prefill, members, bills]); // ✅ Added members & bills to dependency array
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
     const numAmount = parseFloat(amount);
     if (!date || isNaN(numAmount) || numAmount <= 0) {
       setError('Please enter a valid date and amount.');
@@ -88,7 +102,6 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       setError('Please select or enter a category.');
       return;
     }
-
     onSaveTransaction(
       {
         type,
@@ -118,14 +131,14 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             <X size={18} />
           </button>
         </div>
-
         <form onSubmit={handleSubmit} className="modal-form">
           {error && (
             <div className="form-error-banner">
               <AlertCircle size={14} /> {error}
             </div>
           )}
-
+          
+          {/* Type Toggle */}
           <div className="type-toggle-group">
             <button
               type="button"
@@ -142,7 +155,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               <ArrowUpRight size={14} /> Outgoing
             </button>
           </div>
-
+          
+          {/* Date */}
           <div className="form-row">
             <label>Date</label>
             <input
@@ -152,7 +166,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               className="form-input"
             />
           </div>
-
+          
+          {/* Amount */}
           <div className="form-row">
             <label>Amount ({currencySymbol})</label>
             <input
@@ -165,7 +180,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               className="form-input"
             />
           </div>
-
+          
+          {/* Category */}
           <div className="form-row">
             <label>Category</label>
             <select
@@ -181,7 +197,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               ))}
             </select>
           </div>
-
+          
+          {/* From / Payer */}
           <div className="form-row">
             <label>From / Payer</label>
             <select
@@ -197,7 +214,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               ))}
             </select>
           </div>
-
+          
+          {/* For / Member */}
           <div className="form-row">
             <label>For / Member</label>
             <select
@@ -213,7 +231,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               ))}
             </select>
           </div>
-
+          
+          {/* Link to Bill */}
           <div className="form-row">
             <label>Link to Bill (optional)</label>
             <select
@@ -229,7 +248,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               ))}
             </select>
           </div>
-
+          
+          {/* Actions */}
           <div className="modal-actions">
             <button type="button" onClick={onClose} className="modal-btn modal-btn--secondary">
               Cancel
