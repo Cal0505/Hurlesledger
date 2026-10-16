@@ -60,19 +60,16 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         setDescription(prefill.description || '');
         setCategory(prefill.category || '');
         
-        // ✅ Validate: only set if member actually exists in the list
         const validMemberId = prefill.memberId && members.some(m => m.id === prefill.memberId)
           ? prefill.memberId
           : undefined;
         setMemberId(validMemberId);
         
-        // ✅ Same check for fromMemberId
         const validFromId = prefill.fromMemberId && members.some(m => m.id === prefill.fromMemberId)
           ? prefill.fromMemberId
           : undefined;
         setFromMemberId(validFromId);
         
-        // ✅ Same check for linkedBillId
         const validBillId = prefill.linkedBillId && bills.some(b => b.id === prefill.linkedBillId)
           ? prefill.linkedBillId
           : undefined;
@@ -88,12 +85,13 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         setLinkedBillId(undefined);
       }
     }
-  }, [isOpen, prefill, members, bills]); // ✅ Added members & bills to dependency array
+  }, [isOpen, prefill, members, bills]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     const numAmount = parseFloat(amount);
+    
     if (!date || isNaN(numAmount) || numAmount <= 0) {
       setError('Please enter a valid date and amount.');
       return;
@@ -102,24 +100,27 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       setError('Please select or enter a category.');
       return;
     }
-    onSaveTransaction(
-      {
-        type,
-        date,
-        amount: numAmount,
-        description: description.trim() || `${type === 'incoming' ? 'Received' : 'Payment'} - ${category}`,
-        category,
-        memberId,
-        fromMemberId,
-        linkedBillId,
-      },
-      editId
-    );
+
+onSaveTransaction(
+  {
+    type,
+    date,
+    amount: numAmount,
+    description: description.trim() || `${type === 'incoming' ? 'Received' : 'Payment'} - ${category}`,
+    category,
+    memberId,
+    fromMemberId,
+    linkedBillId,
+    account: memberId || fromMemberId || 'main',
+    source: 'manual', // ✅ Add this line — fixes the "source" error
+  },
+  editId
+);
     onClose();
   };
 
   const categories = type === 'incoming' ? INCOMING_CATEGORIES : OUTGOING_CATEGORIES;
-
+  
   if (!isOpen) return null;
 
   return (
@@ -131,6 +132,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             <X size={18} />
           </button>
         </div>
+        
         <form onSubmit={handleSubmit} className="modal-form">
           {error && (
             <div className="form-error-banner">
