@@ -38,10 +38,8 @@ export const BillModal: React.FC<BillModalProps> = ({
   billToEdit,
   currencySymbol,
 }) => {
-  // ✅ MOVED TO TOP — declared BEFORE use
   const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
   const [manualBillingMonth, setManualBillingMonth] = useState(currentMonthKey);
-
   const [selectedDebitGroupKey, setSelectedDebitGroupKey] = useState('');
   const [filterByMonth, setFilterByMonth] = useState<string>('all');
   const [name, setName] = useState('');
@@ -164,6 +162,7 @@ export const BillModal: React.FC<BillModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const selectedDebitGroup = importedDebitGroups.find((group) => group.key === selectedDebitGroupKey);
+    
     if (!name.trim()) {
       setErrorMsg('Please enter a bill name.');
       return;
@@ -176,11 +175,13 @@ export const BillModal: React.FC<BillModalProps> = ({
       setErrorMsg('At least one member must participate in this bill.');
       return;
     }
+
     const finalIncurredDate = frequency === 'one-off'
       ? selectedDebitGroup?.incurredDate ||
         billToEdit?.incurredDate ||
         `${manualBillingMonth}-${String(dueDay).padStart(2, '0')}`
       : undefined;
+    
     onSaveBill(
       {
         name: name.trim(),
@@ -190,8 +191,8 @@ export const BillModal: React.FC<BillModalProps> = ({
         dueDay,
         incurredDate: finalIncurredDate,
         participatingMemberIds,
-        payerMemberIds: payerMemberIds,
-        payerMemberId: payerMemberIds[0],
+        payerMemberIds: payerMemberIds || [], // ✅ Always an array
+        payerMemberId: payerMemberIds?.[0] ?? null, // ✅ Explicit null when empty
         notes: notes.trim() || undefined,
         isActive: billToEdit ? billToEdit.isActive : true,
       },
@@ -215,6 +216,7 @@ export const BillModal: React.FC<BillModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+        
         <form onSubmit={handleSubmit} className="bill-modal-form">
           {errorMsg && (
             <div role="alert" className="bill-modal-error">
@@ -222,6 +224,7 @@ export const BillModal: React.FC<BillModalProps> = ({
               <span>{errorMsg}</span>
             </div>
           )}
+          
           {!billToEdit && allImportedDebitGroups.length > 0 && (
             <div>
               <label className="bill-modal-label">Filter by Month</label>
@@ -243,6 +246,7 @@ export const BillModal: React.FC<BillModalProps> = ({
                   );
                 })}
               </select>
+              
               <label className="bill-modal-label mt-3">
                 Select an imported host-account debit (optional)
               </label>
@@ -279,6 +283,7 @@ export const BillModal: React.FC<BillModalProps> = ({
               </select>
             </div>
           )}
+          
           <div className="mt-4">
             <label className="bill-modal-label">Bill Name *</label>
             <input
@@ -290,6 +295,7 @@ export const BillModal: React.FC<BillModalProps> = ({
               required
             />
           </div>
+          
           <div className="bill-modal-grid-2">
             <div>
               <label className="bill-modal-label">Category</label>
@@ -316,6 +322,7 @@ export const BillModal: React.FC<BillModalProps> = ({
               />
             </div>
           </div>
+          
           <div className="bill-modal-grid-2">
             <div>
               <label className="bill-modal-label">Billing Cycle</label>
@@ -345,6 +352,7 @@ export const BillModal: React.FC<BillModalProps> = ({
               />
             </div>
           </div>
+          
           {frequency === 'one-off' && !selectedDebitGroupKey && (
             <div className="bill-modal-month-panel">
               <label className="bill-modal-subheading">Target Billing Month *</label>
@@ -362,6 +370,7 @@ export const BillModal: React.FC<BillModalProps> = ({
               </p>
             </div>
           )}
+          
           <div className="bill-modal-split-section">
             <div className="bill-modal-split-header">
               <label className="bill-modal-subheading">Split Participants</label>
@@ -371,6 +380,7 @@ export const BillModal: React.FC<BillModalProps> = ({
                   : 'Select participants'}
               </span>
             </div>
+            
             <div className="bill-modal-member-list">
               {members.map((member) => {
                 const isChecked = participatingMemberIds.includes(member.id);
@@ -394,6 +404,7 @@ export const BillModal: React.FC<BillModalProps> = ({
                 );
               })}
             </div>
+            
             {excludedMembers.length > 0 && (
               <div className="bill-modal-excluded-note">
                 <Info className="w-3.5 h-3.5 shrink-0" />
@@ -403,6 +414,7 @@ export const BillModal: React.FC<BillModalProps> = ({
               </div>
             )}
           </div>
+          
           <div>
             <label className="bill-modal-label">Notes & Reference (Optional)</label>
             <textarea
@@ -413,6 +425,7 @@ export const BillModal: React.FC<BillModalProps> = ({
               className="bill-modal-textarea"
             />
           </div>
+          
           <div className="bill-modal-footer">
             <button type="button" onClick={onClose} className="bill-modal-cancel-btn">
               Cancel
