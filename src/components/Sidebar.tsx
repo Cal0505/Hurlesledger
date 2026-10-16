@@ -14,6 +14,14 @@ import {
 import { ActiveTab, Member } from '../types/budget';
 import { formatCurrency } from '../utils/formatters';
 
+interface BalanceInfo {
+  totalMonthlyShare: number;
+  totalPaid: number;
+  remainingDue: number;
+  arrears?: number;
+  totalOwed: number; // ✅ ALREADY = this month + arrears
+}
+
 interface SidebarProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
@@ -25,7 +33,7 @@ interface SidebarProps {
   currencySymbol: string;
   isOpenMobile: boolean;
   setIsOpenMobile: (open: boolean) => void;
-  memberBalances: Record<string, { totalMonthlyShare: number; totalPaid: number; remainingDue: number }>;
+  memberBalances: Record<string, BalanceInfo>;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -141,9 +149,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {members.map((member) => {
                   const isSelected = activeTab === 'members' && selectedMemberId === member.id;
                   const balance = memberBalances[member.id];
-                  const owes = balance ? balance.remainingDue : 0;
-                  const isSettled = balance && balance.totalPaid >= balance.totalMonthlyShare;
                   
+                  // ✅ FIXED: totalOwed is ALREADY the combined grand total — use directly
+                  const totalAllOwed = balance?.totalOwed ?? 0;
+                  const isSettled = totalAllOwed === 0;
+
                   return (
                     <button
                       key={member.id}
@@ -173,7 +183,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           </span>
                         ) : (
                           <span className="sidebar-member-status-owing">
-                            owes {formatCurrency(owes, currencySymbol)}
+                            owes {formatCurrency(totalAllOwed, currencySymbol)}
                           </span>
                         )}
                       </div>
@@ -184,7 +194,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           )}
 
-          {/* ✅ DOWNLOAD APP — Bottom of sidebar, above footer */}
+          {/* Download App Button */}
           <div style={{ marginTop: 'auto', padding: '1rem 0' }}>
             <a
               href="/HurlesLedger.apk"

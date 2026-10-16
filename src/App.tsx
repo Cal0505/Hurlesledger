@@ -5,10 +5,9 @@ import { AuthScreen } from './components/AuthScreen';
 import { AccessRequestsPanel } from './components/AccessRequestsPanel';
 import { HouseholdAccessScreen } from './components/HouseholdAccessScreen';
 import { PasswordRecoveryScreen } from './components/PasswordRecoveryScreen';
-// ✅ Added DEFAULT_ACCENT import
 import { ThemeMode, AccentColor, THEME_STORAGE_KEY, ACCENT_STORAGE_KEY, DEFAULT_ACCENT } from './constants/theme';
 import { supabaseClient, supabaseConfigurationError } from './utils/supabase';
-import { getEmptyState } from './utils/storage';
+import { getEmptyState, getMemberShareForBill } from './utils/storage';
 import type { HouseholdAccessRequest } from './types/budget';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -33,8 +32,6 @@ export default function App() {
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(
     () => new URLSearchParams(window.location.hash.slice(1)).get('type') === 'recovery'
   );
-
-  // ===== THEME MODE =====
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     try {
       const stored = localStorage.getItem(THEME_STORAGE_KEY);
@@ -42,8 +39,6 @@ export default function App() {
       return 'system';
     } catch { return 'system'; }
   });
-
-  // ===== ACCENT COLOR — uses DEFAULT_ACCENT, never null =====
   const [accentColor, setAccentColor] = useState<AccentColor>(() => {
     try {
       const stored = localStorage.getItem(ACCENT_STORAGE_KEY);
@@ -53,46 +48,34 @@ export default function App() {
     } catch { return DEFAULT_ACCENT; }
   });
 
-  // ===== SAVE PREFERENCES =====
   useEffect(() => {
     try { localStorage.setItem(THEME_STORAGE_KEY, themeMode); }
     catch (e) { console.warn('Could not save theme mode', e); }
   }, [themeMode]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(ACCENT_STORAGE_KEY, accentColor);
-    } catch (e) { console.warn('Could not save accent color', e); }
+    try { localStorage.setItem(ACCENT_STORAGE_KEY, accentColor); }
+    catch (e) { console.warn('Could not save accent color', e); }
   }, [accentColor]);
 
-  // ===== APPLY FULL THEME — no null fallback needed =====
   useEffect(() => {
     const root = document.documentElement;
     const systemMedia = window.matchMedia('(prefers-color-scheme: dark)');
-    
     const apply = () => {
       const base = themeMode === 'light' ? 'light'
         : themeMode === 'dark' ? 'dark'
         : systemMedia.matches ? 'dark' : 'light';
-      
-      // ✅ accentColor is always valid now
       root.dataset.theme = `${accentColor}-${base}`;
     };
-    
     apply();
-    
     if (themeMode === 'system') {
       systemMedia.addEventListener('change', apply);
       return () => systemMedia.removeEventListener('change', apply);
     }
   }, [accentColor, themeMode]);
 
-  // ===== AUTH & SESSION =====
   useEffect(() => {
-    if (!supabaseClient) {
-      setIsAuthLoading(false);
-      return;
-    }
+    if (!supabaseClient) { setIsAuthLoading(false); return; }
     let isMounted = true;
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, nextSession) => {
       if (isMounted) {
@@ -108,20 +91,16 @@ export default function App() {
       if (error) setAuthError(error.message);
       else setSession(data.session);
       setIsAuthLoading(false);
-    }).catch((e: unknown) => {
+    }).catch(() => {
       if (!isMounted) return;
-      setAuthError(e instanceof Error ? e.message : 'Unable to check your sign-in session.');
+      setAuthError('Unable to check your sign-in session.');
       setIsAuthLoading(false);
     });
     return () => { isMounted = false; subscription.unsubscribe(); };
   }, []);
 
-  // ===== ACCESS CHECK =====
   useEffect(() => {
-    if (!session) {
-      setAccessStatus('none');
-      return;
-    }
+    if (!session) { setAccessStatus('none'); return; }
     let isMounted = true;
     setAccessStatus('checking');
     setAccessError('');
@@ -129,9 +108,9 @@ export default function App() {
       getHouseholdAccessStatus(supabaseClient!, session.user.id)
     ).then((status) => {
       if (isMounted) setAccessStatus(status);
-    }).catch((e: unknown) => {
+    }).catch(() => {
       if (!isMounted) return;
-      setAccessError(e instanceof Error ? e.message : 'Unable to check household access.');
+      setAccessError('Unable to check household access.');
       setAccessStatus('error');
     });
     return () => { isMounted = false; };
@@ -143,7 +122,6 @@ export default function App() {
     if (error) throw error;
   };
 
-  // ===== LOADING SCREENS =====
   if (isAuthLoading) {
     return <main className="min-h-screen flex items-center justify-center bg-neutral-50 text-neutral-700"><p className="text-sm">Checking your sign-in…</p></main>;
   }
@@ -195,7 +173,6 @@ export default function App() {
   );
 }
 
-// ===== HOUSEHOLD APP =====
 interface HouseholdAppProps {
   themeMode: ThemeMode;
   onChangeTheme: (t: ThemeMode) => void;
@@ -221,12 +198,11 @@ function HouseholdApp({
   const mutationQueueRef = useRef<Promise<void>>(Promise.resolve());
   const isAccountHolder = state.members.some(m => m.authUserId === signedInUserId && m.isAccountHolder);
   const visibleMembers = isAccountHolder ? state.members : state.members.filter(m => m.authUserId === signedInUserId);
+
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const displayedTab = isAccountHolder ? activeTab : 'members';
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // ===== MODALS =====
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [isBillModalOpen, setIsBillModalOpen] = useState(false);
   const [billToEdit, setBillToEdit] = useState<HouseholdBill | null>(null);
@@ -236,20 +212,17 @@ function HouseholdApp({
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const [memberToEdit, setMemberToEdit] = useState<Member | null>(null);
 
-  // Date
   const [activeLedgerDate, setActiveLedgerDate] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const currentMonthKey = `${activeLedgerDate.getFullYear()}-${String(activeLedgerDate.getMonth() + 1).padStart(2, '0')}`;
 
-  // Clear legacy state
   useEffect(() => {
     try { localStorage.removeItem('Hurlesledger_household_state_v1'); }
     catch (e) { console.warn('Unable to remove old data', e); }
   }, []);
 
-  // Load data
   useEffect(() => {
     let isMounted = true;
     setIsDataLoading(true);
@@ -270,9 +243,9 @@ function HouseholdApp({
       setAccessRequests(requests);
       setSelectedMemberId(loadedState.members?.length > 0 ? loadedState.members[0].id : null);
       setIsDataLoading(false);
-    }).catch((e: unknown) => {
+    }).catch(() => {
       if (!isMounted) return;
-      setLoadError(e instanceof Error ? e.message : 'Unable to load household data.');
+      setLoadError('Unable to load household data.');
       setIsDataLoading(false);
     });
     return () => { isMounted = false; };
@@ -288,8 +261,8 @@ function HouseholdApp({
       stateRef.current = next;
       setState(next);
       setSaveError('');
-    }).catch((e: unknown) => {
-      setSaveError(e instanceof Error ? e.message : 'Unable to save changes to Supabase.');
+    }).catch(() => {
+      setSaveError('Unable to save changes to Supabase.');
     });
   };
 
@@ -299,35 +272,77 @@ function HouseholdApp({
     }
   }, [state.members, selectedMemberId]);
 
-  // Balances
   const memberBalances = useMemo(() => {
-    const map: Record<string, { totalMonthlyShare: number; totalPaid: number; remainingDue: number }> = {};
+    const map: Record<string, {
+      totalMonthlyShare: number;
+      totalPaid: number;
+      remainingDue: number;
+      arrears: number;
+      totalOwed: number;
+    }> = {};
+
+    let earliest = currentMonthKey;
+    state.bills.forEach(b => {
+      if (b.incurredDate) { const k = b.incurredDate.slice(0, 7); if (k < earliest) earliest = k; }
+      if (b.createdAt) { const k = b.createdAt.slice(0, 7); if (k < earliest) earliest = k; }
+    });
+    state.transactions.forEach(t => {
+      if (t.date) { const k = t.date.slice(0, 7); if (k < earliest) earliest = k; }
+    });
+
+    const allMonths: string[] = [];
+    const [ey, em] = earliest.split('-').map(Number);
+    const [cy, cm] = currentMonthKey.split('-').map(Number);
+    const cursor = new Date(ey, em - 1, 1);
+    const endDate = new Date(cy, cm - 1, 1);
+    while (cursor <= endDate) {
+      allMonths.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`);
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
     state.members.forEach(m => {
       if (m.isAccountHolder) {
-        map[m.id] = { totalMonthlyShare: 0, totalPaid: 0, remainingDue: 0 };
+        map[m.id] = { totalMonthlyShare: 0, totalPaid: 0, remainingDue: 0, arrears: 0, totalOwed: 0 };
         return;
       }
-      const months = new Set<string>();
-      state.bills.forEach(b => b.incurredDate && months.add(b.incurredDate.slice(0, 7)));
-      months.add(currentMonthKey);
-      let billsTotal = 0, paymentsTotal = 0;
-      months.forEach(mKey => {
-        state.bills.filter(b => b.isActive && b.incurredDate?.startsWith(mKey)).forEach(bill => {
-          if (!bill.participatingMemberIds.includes(m.id)) return;
-          const parts = bill.participatingMemberIds.length;
-          if (parts === 0) return;
-          const share = Math.floor((bill.amount / parts) * 100) / 100;
-          billsTotal += share;
+
+      let totalBillsAllTime = 0;
+      let totalPaymentsAllTime = 0;
+      let thisMonthShare = 0;
+      let thisMonthPaid = 0;
+
+      allMonths.forEach(mKey => {
+        const isCurrent = mKey === currentMonthKey;
+        state.bills.filter(b => b.isActive).forEach(bill => {
+          const share = getMemberShareForBill(m.id, bill, mKey);
+          totalBillsAllTime += share;
+          if (isCurrent) thisMonthShare += share;
         });
+        state.transactions
+          .filter(tx =>
+            tx.type === 'incoming' &&
+            (tx.fromMemberId === m.id || (tx as any).memberId === m.id) &&
+            tx.date?.startsWith(mKey)
+          )
+          .forEach(tx => {
+            totalPaymentsAllTime += tx.amount;
+            if (isCurrent) thisMonthPaid += tx.amount;
+          });
       });
-      state.transactions.filter(tx => tx.type === 'incoming' && (tx.fromMemberId === m.id || (tx as any).memberId === m.id))
-        .forEach(tx => { paymentsTotal += tx.amount; });
+
+      const totalOwed = Math.max(0, Math.round((totalBillsAllTime - totalPaymentsAllTime) * 100) / 100);
+      const remainingDue = Math.max(0, Math.round((thisMonthShare - thisMonthPaid) * 100) / 100);
+      const arrears = Math.max(0, Math.round((totalOwed - remainingDue) * 100) / 100);
+
       map[m.id] = {
-        totalMonthlyShare: billsTotal,
-        totalPaid: paymentsTotal,
-        remainingDue: Math.max(0, Math.round((billsTotal - paymentsTotal) * 100) / 100),
+        totalMonthlyShare: Math.round(thisMonthShare * 100) / 100,
+        totalPaid: Math.round(thisMonthPaid * 100) / 100,
+        remainingDue,
+        arrears,
+        totalOwed
       };
     });
+
     return map;
   }, [state.members, state.bills, state.transactions, currentMonthKey]);
 
@@ -343,22 +358,11 @@ function HouseholdApp({
     }));
   };
 
-  const handleSaveTransaction = (
-    data: Omit<Transaction, 'id' | 'createdAt'>,
-    existingId?: string
-  ) => {
+  const handleSaveTransaction = (data: Omit<Transaction, 'id' | 'createdAt'>, existingId?: string) => {
     if (existingId) {
-      commitState(p => ({
-        ...p,
-        transactions: p.transactions.map(tx =>
-          tx.id === existingId ? { ...tx, ...data } : tx
-        )
-      }));
+      commitState(p => ({ ...p, transactions: p.transactions.map(tx => tx.id === existingId ? { ...tx, ...data } : tx) }));
     } else {
-      commitState(p => ({
-        ...p,
-        transactions: [{ ...data, id: `tx-${crypto.randomUUID()}`, createdAt: new Date().toISOString() }, ...p.transactions]
-      }));
+      commitState(p => ({ ...p, transactions: [{ ...data, id: `tx-${crypto.randomUUID()}`, createdAt: new Date().toISOString() }, ...p.transactions] }));
     }
     setIsTxModalOpen(false);
     setTxPrefill(null);
@@ -369,10 +373,7 @@ function HouseholdApp({
     commitState(p => ({ ...p, transactions: p.transactions.filter(t => t.id !== id) }));
   };
 
-  const openTransactionModal = (
-    prefillData?: Partial<Transaction> | null,
-    editId?: string
-  ) => {
+  const openTransactionModal = (prefillData?: Partial<Transaction> | null, editId?: string) => {
     setTxPrefill(prefillData || null);
     setEditingTxId(editId ?? null);
     setIsTxModalOpen(true);
@@ -397,7 +398,7 @@ function HouseholdApp({
     if (billId) {
       commitState(p => ({ ...p, bills: p.bills.map(b => b.id === billId ? { ...b, ...data } : b) }));
     } else {
-      if (txIds && (!isAccountHolder)) {
+      if (txIds && !isAccountHolder) {
         setSaveError('Only a host can convert an unlinked outgoing transaction into a household bill.');
         return;
       }
@@ -543,35 +544,29 @@ function HouseholdApp({
           />
           <main className="flex-1 p-4 md:p-8 overflow-y-auto">
             {saveError && <div role="alert" className="mb-5 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">Changes were not saved: {saveError}</div>}
-            
-            {displayedTab === 'dashboard' && <PersonalDashboard 
-              members={visibleMembers} bills={state.bills} transactions={state.transactions} 
-              signedInUserId={signedInUserId} userEmail={userEmail} currencySymbol={state.currencySymbol} 
-              onNavigate={handleNavigate} onOpenImportCsv={() => setIsCsvModalOpen(true)} 
-              onOpenAddBill={() => { setBillToEdit(null); setIsBillModalOpen(true); }} 
-              onOpenAddTransaction={(p) => openTransactionModal(p)} 
+
+            {displayedTab === 'dashboard' && <PersonalDashboard
+              members={visibleMembers} bills={state.bills} transactions={state.transactions}
+              signedInUserId={signedInUserId} userEmail={userEmail} currencySymbol={state.currencySymbol}
+              onNavigate={handleNavigate} onOpenImportCsv={() => setIsCsvModalOpen(true)}
+              onOpenAddBill={() => { setBillToEdit(null); setIsBillModalOpen(true); }}
+              onOpenAddTransaction={(p) => openTransactionModal(p)}
             />}
-            
+
             {displayedTab === 'incoming' && <IncomingView
-              transactions={state.transactions}
-              members={visibleMembers}
-              bills={state.bills}
-              currencySymbol={state.currencySymbol}
-              onOpenImportCsv={() => setIsCsvModalOpen(true)}
+              transactions={state.transactions} members={visibleMembers} bills={state.bills}
+              currencySymbol={state.currencySymbol} onOpenImportCsv={() => setIsCsvModalOpen(true)}
               onDeleteTransaction={handleDeleteTransaction}
               onOpenAddTransaction={(p, editId?: string) => openTransactionModal(p, editId)}
             />}
-            
+
             {displayedTab === 'outgoing' && <OutgoingView
-              transactions={state.transactions}
-              bills={state.bills}
-              members={visibleMembers}
-              currencySymbol={state.currencySymbol}
-              onOpenImportCsv={() => setIsCsvModalOpen(true)}
+              transactions={state.transactions} bills={state.bills} members={visibleMembers}
+              currencySymbol={state.currencySymbol} onOpenImportCsv={() => setIsCsvModalOpen(true)}
               onDeleteTransaction={handleDeleteTransaction}
               onOpenAddTransaction={(p, editId?: string) => openTransactionModal(p, editId)}
             />}
-            
+
             {displayedTab === 'household-bills' && <HouseholdBillsView
               bills={state.bills} members={visibleMembers} canManageBills={isAccountHolder}
               currencySymbol={state.currencySymbol} onDeleteBill={handleDeleteBill}
@@ -579,11 +574,11 @@ function HouseholdApp({
               onOpenAddBill={() => { setBillToEdit(null); setIsBillModalOpen(true); }}
               onEditBill={(b) => { setBillToEdit(b); setIsBillModalOpen(true); }}
             />}
-            
+
             {displayedTab === 'members' && <>
-              {isAccountHolder && <AccessRequestsPanel 
-                requests={accessRequests} onResolveRequest={handleResolveAccessRequest} 
-                onRefresh={handleRefreshAccessRequests} 
+              {isAccountHolder && <AccessRequestsPanel
+                requests={accessRequests} onResolveRequest={handleResolveAccessRequest}
+                onRefresh={handleRefreshAccessRequests}
               />}
               <MemberProfilesView
                 members={visibleMembers} bills={state.bills} transactions={state.transactions}
@@ -591,15 +586,16 @@ function HouseholdApp({
                 currencySymbol={state.currencySymbol} onDeleteMember={handleDeleteMember} onToggleCoHost={handleToggleCoHost}
                 onOpenAddMember={() => { setMemberToEdit(null); setIsMemberModalOpen(true); }}
                 onEditMember={(m) => { setMemberToEdit(m); setIsMemberModalOpen(true); }}
-                onOpenAddTransaction={(p, editId?: string) => { 
-                  if (p) openTransactionModal(p, editId); 
-                  else if (selectedMemberId) handleRecordCashOverride(selectedMemberId); 
+                onOpenAddTransaction={(p, editId?: string) => {
+                  if (p) openTransactionModal(p, editId);
+                  else if (selectedMemberId) handleRecordCashOverride(selectedMemberId);
                 }}
                 signedInUserEmail={userEmail} onLinkMemberToLogin={handleLinkMemberToLogin}
+                memberBalances={memberBalances}
                 {...({ currentMonthKey, setSelectedMonthDate: setActiveLedgerDate } as any)}
               />
             </>}
-            
+
             {displayedTab === 'settlement' && <SettlementMatrixView
               members={visibleMembers} bills={state.bills} transactions={state.transactions}
               primaryUserId={state.primaryUserId} currencySymbol={state.currencySymbol}
@@ -610,26 +606,22 @@ function HouseholdApp({
           </footer>
         </div>
       </div>
-      
-      <CsvImportModal 
-        isOpen={isCsvModalOpen} onClose={() => setIsCsvModalOpen(false)} 
-        members={visibleMembers} currencySymbol={state.currencySymbol} 
-        onImportTransactions={handleImportCsvTransactions} 
+
+      <CsvImportModal
+        isOpen={isCsvModalOpen} onClose={() => setIsCsvModalOpen(false)}
+        members={visibleMembers} currencySymbol={state.currencySymbol}
+        onImportTransactions={handleImportCsvTransactions}
       />
-      <BillModal 
-        isOpen={isBillModalOpen} onClose={() => { setIsBillModalOpen(false); setBillToEdit(null); }} 
-        onSaveBill={handleSaveBill} members={visibleMembers} billToEdit={billToEdit} 
-        currencySymbol={state.currencySymbol} 
-        importedTransactions={isAccountHolder ? state.transactions.filter(t => t.type === 'outgoing' && t.source === 'csv-import' && !t.linkedBillId) : []} 
+      <BillModal
+        isOpen={isBillModalOpen} onClose={() => { setIsBillModalOpen(false); setBillToEdit(null); }}
+        onSaveBill={handleSaveBill} members={visibleMembers} billToEdit={billToEdit}
+        currencySymbol={state.currencySymbol}
+        importedTransactions={isAccountHolder ? state.transactions.filter(t => t.type === 'outgoing' && t.source === 'csv-import' && !t.linkedBillId) : []}
       />
-      
+
       <TransactionModal
         isOpen={isTxModalOpen}
-        onClose={() => {
-          setIsTxModalOpen(false);
-          setTxPrefill(null);
-          setEditingTxId(null);
-        }}
+        onClose={() => { setIsTxModalOpen(false); setTxPrefill(null); setEditingTxId(null); }}
         onSaveTransaction={handleSaveTransaction}
         members={visibleMembers}
         bills={state.bills}
@@ -637,10 +629,10 @@ function HouseholdApp({
         prefill={txPrefill}
         editId={editingTxId || undefined}
       />
-      
-      <MemberModal 
-        isOpen={isMemberModalOpen} onClose={() => { setIsMemberModalOpen(false); setMemberToEdit(null); }} 
-        onSaveMember={handleSaveMember} memberToEdit={memberToEdit} 
+
+      <MemberModal
+        isOpen={isMemberModalOpen} onClose={() => { setIsMemberModalOpen(false); setMemberToEdit(null); }}
+        onSaveMember={handleSaveMember} memberToEdit={memberToEdit}
       />
     </div>
   );

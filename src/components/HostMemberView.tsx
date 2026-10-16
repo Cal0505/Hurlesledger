@@ -15,8 +15,10 @@ import {
 import { HouseholdBill, Member, Transaction } from '../types/budget';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { getMemberShareForBill, getPrimaryAccountLabel } from '../utils/storage';
+
 const STEP_DEG = 28;
 const Z_DEPTH = 135;
+
 interface HostMemberViewProps {
   activeMember: Member;
   members: Member[];
@@ -34,7 +36,10 @@ interface HostMemberViewProps {
   onLinkMemberToLogin: (memberId: string) => Promise<void>;
   setSelectedMemberId: (id: string) => void;
   setSelectedMonthDate: React.Dispatch<React.SetStateAction<Date>>;
+  // ✅ Send pre-calculated totals UP — no duplicate math
+  onMemberTotalsReady?: (totals: Record<string, number>) => void;
 }
+
 export const HostMemberView: React.FC<HostMemberViewProps> = ({
   activeMember,
   members,
@@ -52,11 +57,13 @@ export const HostMemberView: React.FC<HostMemberViewProps> = ({
   onLinkMemberToLogin,
   setSelectedMemberId,
   setSelectedMonthDate,
+  onMemberTotalsReady
 }) => {
   const [copiedNotification, setCopiedNotification] = useState(false);
   const [isLinkingLogin, setIsLinkingLogin] = useState(false);
   const [loginLinkMessage, setLoginLinkMessage] = useState('');
   const isMoving = useRef(false);
+
   const filterOptions = useMemo(() => {
     const options = [];
     const now = new Date();
@@ -73,10 +80,12 @@ export const HostMemberView: React.FC<HostMemberViewProps> = ({
     }
     return options;
   }, []);
+
   const activeIndex = useMemo(() =>
     filterOptions.findIndex(opt => opt.key === currentMonthKey),
     [filterOptions, currentMonthKey]
   );
+
   const timelineDataMap = useMemo(() => {
     const dataMap: Record<string, { billed: number; paid: number; arrears: number }> = {};
     filterOptions.forEach(opt => {
@@ -97,6 +106,36 @@ export const HostMemberView: React.FC<HostMemberViewProps> = ({
     });
     return dataMap;
   }, [filterOptions, bills, transactions, activeMember.id]);
+
+// ✅ Calculate ALL member balances HERE — ONE source of truth
+const memberTotals = useMemo(() => {
+  const totals: Record<string, number> = {};
+  members.forEach(m => {
+    if (m.isAccountHolder) {
+      totals[m.id] = 0;
+      return;
+    }
+    let totalBillsAllTime = 0;
+    let totalPaymentsAllTime = 0;
+    filterOptions.forEach(opt => {
+      bills.filter(b => b.isActive).forEach(bill => {
+        totalBillsAllTime += getMemberShareForBill(m.id, bill, opt.key);
+      });
+    });
+    transactions
+      .filter(tx => tx.type === 'incoming' && (tx.fromMemberId === m.id || (tx as any).memberId === m.id))
+      .forEach(tx => {
+        totalPaymentsAllTime += tx.amount;
+      });
+    // ✅ Round ONCE at the very end — same as App.tsx
+    const rawOwed = totalBillsAllTime - totalPaymentsAllTime;
+    totals[m.id] = Math.max(0, Number(rawOwed.toFixed(2)));
+  });
+  // Send totals up to parent
+  onMemberTotalsReady?.(totals);
+  return totals;
+}, [members, bills, transactions, filterOptions, onMemberTotalsReady]);
+
   const goToIndex = (newIdx: number) => {
     if (isMoving.current) return;
     if (newIdx < 0 || newIdx >= filterOptions.length) return;
@@ -104,9 +143,11 @@ export const HostMemberView: React.FC<HostMemberViewProps> = ({
     setSelectedMonthDate(filterOptions[newIdx].dateObj);
     setTimeout(() => { isMoving.current = false; }, 150);
   };
+
   const handleStepTimeline = (dir: 'up' | 'down') => {
     goToIndex(dir === 'up' ? activeIndex - 1 : activeIndex + 1);
   };
+
   const handleWheelScroll = (e: React.WheelEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -114,53 +155,49 @@ export const HostMemberView: React.FC<HostMemberViewProps> = ({
     if (Math.abs(e.deltaY) < 15) return;
     goToIndex(e.deltaY < 0 ? activeIndex - 1 : activeIndex + 1);
   };
-  const hostTimelineOverview = (() => {
-    if (activeMember.isAccountHolder) {
-      return { accumulatedDebtPriorToCurrent: 0, grandTotalOutstanding: 0 };
-    }
-    let totalBillsAllTime = 0;
-    let totalPaymentsAllTime = 0;
-    filterOptions.forEach(opt => {
-      bills
-        .filter(b => b.isActive && b.incurredDate && b.incurredDate.startsWith(opt.key))
-        .forEach(bill => {
-          totalBillsAllTime += getMemberShareForBill(activeMember.id, bill, opt.key);
-        });
+
+const hostTimelineOverview = (() => {
+  if (activeMember.isAccountHolder) {
+    return { accumulatedDebtPriorToCurrent: 0, grandTotalOutstanding: 0 };
+  }
+  // ✅ Use the pre-computed grand total — matches tabs & sidebar
+  const grandTotalOutstanding = memberTotals[activeMember.id] ?? 0;
+  
+  let currentPeriodBills = 0;
+  bills
+    .filter(b => b.isActive && b.incurredDate && b.incurredDate.startsWith(currentMonthKey))
+    .forEach(bill => {
+      currentPeriodBills += getMemberShareForBill(activeMember.id, bill, currentMonthKey);
     });
-    transactions
-      .filter(tx => tx.type === 'incoming' && (tx.fromMemberId === activeMember.id || (tx as any).memberId === activeMember.id))
-      .forEach(tx => {
-        totalPaymentsAllTime += tx.amount;
-      });
-    const grandTotalOutstanding = Math.max(0, Math.round((totalBillsAllTime - totalPaymentsAllTime) * 100) / 100);
-    let currentPeriodBills = 0;
-    bills
-      .filter(b => b.isActive && b.incurredDate && b.incurredDate.startsWith(currentMonthKey))
-      .forEach(bill => {
-        currentPeriodBills += getMemberShareForBill(activeMember.id, bill, currentMonthKey);
-      });
-    let currentPeriodPaid = 0;
-    transactions
-      .filter(tx => tx.type === 'incoming' &&
-          (tx.fromMemberId === activeMember.id || (tx as any).memberId === activeMember.id) &&
-          tx.date.slice(0, 7) === currentMonthKey)
-      .forEach(tx => {
-        currentPeriodPaid += tx.amount;
-      });
-    const currentPeriodRemaining = Math.max(0, Math.round((currentPeriodBills - currentPeriodPaid) * 100) / 100);
-    const accumulatedDebtPriorToCurrent = Math.max(0, Math.round((grandTotalOutstanding - currentPeriodRemaining) * 100) / 100);
-    return { accumulatedDebtPriorToCurrent, grandTotalOutstanding };
-  })();
+  
+  let currentPeriodPaid = 0;
+  transactions
+    .filter(tx => tx.type === 'incoming' &&
+        (tx.fromMemberId === activeMember.id || (tx as any).memberId === activeMember.id) &&
+        tx.date.slice(0, 7) === currentMonthKey)
+    .forEach(tx => {
+      currentPeriodPaid += tx.amount;
+    });
+  
+  const currentPeriodRemaining = Math.max(0, Number((currentPeriodBills - currentPeriodPaid).toFixed(2)));
+  // Arrears = grand total minus this month's portion
+  const accumulatedDebtPriorToCurrent = Math.max(0, Number((grandTotalOutstanding - currentPeriodRemaining).toFixed(2)));
+  
+  return { accumulatedDebtPriorToCurrent, grandTotalOutstanding };
+})();
+
   const participatingBills = bills.filter(
     (b) => b.isActive
       && b.participatingMemberIds.includes(activeMember.id)
       && (b.frequency !== 'one-off' || b.incurredDate?.startsWith(currentMonthKey))
   );
+
   const excludedBills = bills.filter(
     (b) => b.isActive
       && !b.participatingMemberIds.includes(activeMember.id)
       && (b.frequency !== 'one-off' || b.incurredDate?.startsWith(currentMonthKey))
   );
+
   const balance = (() => {
     let totalMonthlyShare = 0;
     participatingBills.forEach(b => {
@@ -180,9 +217,11 @@ export const HostMemberView: React.FC<HostMemberViewProps> = ({
       remainingDue: Math.max(0, Math.round((totalMonthlyShare - totalPaid) * 100) / 100)
     };
   })();
+
   const memberTransactions = transactions
     .filter((t) => t.type === 'incoming' && t.fromMemberId === activeMember.id)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
   const generateShareText = () => {
     let lines = [`*${currentMonthName} Household Split Breakdown for ${activeMember.name}*`];
     lines.push('');
@@ -199,6 +238,7 @@ export const HostMemberView: React.FC<HostMemberViewProps> = ({
     lines.push(`Please transfer to ${getPrimaryAccountLabel(members)}. Thanks!`);
     return lines.join('\n');
   };
+
   const handleCopyShareText = () => {
     navigator.clipboard.writeText(generateShareText());
     setCopiedNotification(true);
@@ -207,25 +247,14 @@ export const HostMemberView: React.FC<HostMemberViewProps> = ({
 
   return (
     <div className="member-view-container">
-      {/* Member Tabs — header removed */}
+      {/* Member Tabs — uses precomputed totals */}
       <div className="member-tabs-container">
         {members.map((m) => {
           const isSelected = m.id === activeMember.id;
-          const memberAllTimeOutstanding = (() => {
-            if (m.isAccountHolder) return 0;
-            let totalBillsAllTime = 0;
-            let totalPaymentsAllTime = 0;
-            filterOptions.forEach(opt => {
-              bills.filter(b => b.isActive).forEach(bill => {
-                totalBillsAllTime += getMemberShareForBill(m.id, bill, opt.key);
-              });
-            });
-            transactions
-              .filter(tx => tx.type === 'incoming' && (tx.fromMemberId === m.id || (tx as any).memberId === m.id))
-              .forEach(tx => { totalPaymentsAllTime += tx.amount; });
-            return Math.max(0, Math.round((totalBillsAllTime - totalPaymentsAllTime) * 100) / 100);
-          })();
+          // ✅ Use precomputed value — NO recalculation here
+          const memberAllTimeOutstanding = memberTotals[m.id];
           const isTrulySettledAllTime = m.isAccountHolder || memberAllTimeOutstanding === 0;
+
           return (
             <button
               key={m.id}
@@ -497,6 +526,7 @@ export const HostMemberView: React.FC<HostMemberViewProps> = ({
               )}
             </div>
           </div>
+
           {/* Excluded Bills */}
           <div className="member-bills-section">
             <div className="member-bills-header-row">

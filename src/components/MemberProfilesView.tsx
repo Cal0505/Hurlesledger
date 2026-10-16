@@ -1,11 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Users, RotateCw } from 'lucide-react';
 import { HouseholdBill, Member, Transaction } from '../types/budget';
 import { HostMemberView } from './HostMemberView';
 import { NonHostMemberView } from './NonHostMemberView';
 import { MemberModal } from './MemberModal';
+import { getMemberShareForBill } from '../utils/storage';
 
 type TabType = 'members' | 'access';
+
+interface BalanceInfo {
+  totalMonthlyShare: number;
+  totalPaid: number;
+  remainingDue: number;
+  arrears: number;
+  totalOwed: number;
+}
 
 interface MemberProfilesViewProps {
   members: Member[];
@@ -24,15 +33,20 @@ interface MemberProfilesViewProps {
   onLinkMemberToLogin: (memberId: string) => Promise<void>;
   accessRequestCount?: number;
   children?: React.ReactNode;
+  onMemberBalancesReady?: (balances: Record<string, BalanceInfo>) => void;
 }
 
 export const MemberProfilesView: React.FC<MemberProfilesViewProps> = (props) => {
   const {
     members,
-    selectedMemberId,
+    bills,
+    transactions,
     canManageMembers,
+    selectedMemberId,
+    onEditMember,
     accessRequestCount = 0,
-    children
+    children,
+    onMemberBalancesReady
   } = props;
 
   const [activeTab, setActiveTab] = useState<TabType>('members');
@@ -43,9 +57,69 @@ export const MemberProfilesView: React.FC<MemberProfilesViewProps> = (props) => 
 
   const activeMemberId = selectedMemberId || (members[0]?.id ?? '');
   const activeMember = members.find((m) => m.id === activeMemberId) || members[0];
-
   const currentMonthKey = `${selectedMonthDate.getFullYear()}-${String(selectedMonthDate.getMonth() + 1).padStart(2, '0')}`;
   const currentMonthName = selectedMonthDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+
+  const memberBalances = useMemo(() => {
+    const balances: Record<string, BalanceInfo> = {};
+
+    members.forEach(member => {
+      if (member.isAccountHolder) {
+        balances[member.id] = {
+          totalMonthlyShare: 0,
+          totalPaid: 0,
+          remainingDue: 0,
+          arrears: 0,
+          totalOwed: 0
+        };
+        return;
+      }
+
+      let totalBillsAllTime = 0;
+      let totalPaymentsAllTime = 0;
+      let currentMonthBilled = 0;
+
+      bills.filter(b => b.isActive).forEach(bill => {
+        const billAny = bill as any;
+        if (billAny.monthlyAllocations) {
+          Object.keys(billAny.monthlyAllocations).forEach(monthKey => {
+            const share = getMemberShareForBill(member.id, bill, monthKey);
+            totalBillsAllTime += share;
+          });
+        } else {
+          const share = getMemberShareForBill(member.id, bill, currentMonthKey);
+          totalBillsAllTime += share;
+        }
+
+        const thisMonthShare = getMemberShareForBill(member.id, bill, currentMonthKey);
+        currentMonthBilled += thisMonthShare;
+      });
+
+      transactions
+        .filter(tx =>
+          tx.type === 'incoming' &&
+          (tx.fromMemberId === member.id || (tx as any).memberId === member.id)
+        )
+        .forEach(tx => {
+          totalPaymentsAllTime += tx.amount;
+        });
+
+      const totalOwed = Number((totalBillsAllTime - totalPaymentsAllTime).toFixed(2));
+      const remainingDue = Number(currentMonthBilled.toFixed(2));
+      const arrears = Number((totalOwed - remainingDue).toFixed(2));
+
+      balances[member.id] = {
+        totalMonthlyShare: currentMonthBilled,
+        totalPaid: 0,
+        remainingDue,
+        arrears,
+        totalOwed
+      };
+    });
+
+    onMemberBalancesReady?.(balances);
+    return balances;
+  }, [members, bills, transactions, onMemberBalancesReady, currentMonthKey]);
 
   if (!activeMember) {
     return (
@@ -71,7 +145,6 @@ export const MemberProfilesView: React.FC<MemberProfilesViewProps> = (props) => 
 
   return (
     <div className="member-profiles-wrapper">
-      {/* ✅ Only Host/Managers see top tab bar */}
       {canManageMembers && (
         <div className="member-profiles-tab-bar">
           <button
@@ -109,7 +182,6 @@ export const MemberProfilesView: React.FC<MemberProfilesViewProps> = (props) => 
         </div>
       )}
 
-      {/* Main Content — All members see their profile */}
       {(!canManageMembers || activeTab === 'members') && (
         <div className="member-profiles-content">
           {!canManageMembers ? (
@@ -120,7 +192,7 @@ export const MemberProfilesView: React.FC<MemberProfilesViewProps> = (props) => 
               currencySymbol={props.currencySymbol}
               currentMonthKey={currentMonthKey}
               currentMonthName={currentMonthName}
-              onEditMember={props.onEditMember}
+              onEditMember={onEditMember}
               setSelectedMonthDate={setSelectedMonthDate}
             />
           ) : (
@@ -135,14 +207,12 @@ export const MemberProfilesView: React.FC<MemberProfilesViewProps> = (props) => 
         </div>
       )}
 
-      {/* Access Requests — Host/Managers only */}
       {canManageMembers && activeTab === 'access' && (
         <div className="member-profiles-access-content">
           {children || <p>No access requests at this time.</p>}
         </div>
       )}
 
-      {/* ✅ Footer — Host/Managers ONLY */}
       {canManageMembers && (
         <footer className="app-footer">
           HurlesLedger · Shared household database
